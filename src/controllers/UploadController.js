@@ -130,7 +130,7 @@ export class UploadController {
       // Start processing
       this.showProcessing();
 
-      // Process with insurance service (now includes AI analysis)
+      // Process with insurance service (now includes Perplexity AI analysis)
       const extractedData = await this.insuranceService.processDocument(file);
       this.extractedData = extractedData;
 
@@ -224,7 +224,7 @@ export class UploadController {
       // Update processing text to mention AI analysis
       const processingText = processingSection.querySelector('p');
       if (processingText) {
-        processingText.textContent = 'AI analyzing your document and extracting coverage details...';
+        processingText.textContent = 'Perplexity AI analyzing your document and extracting coverage details...';
       }
     }
   }
@@ -263,7 +263,7 @@ export class UploadController {
   }
 
   /**
-   * Update the results display with AI analysis information
+   * Update the results display with Perplexity AI analysis information
    */
   updateResultsDisplay(data) {
     const resultsSection = document.getElementById('extractedInfo');
@@ -274,7 +274,7 @@ export class UploadController {
     if (title) {
       if (data.aiProcessed) {
         title.innerHTML = `
-          <span>AI-Analyzed Insurance Information</span>
+          <span>Perplexity AI Analysis Results</span>
           <span class="confidence-badge confidence-${data.confidence}">${data.confidence} confidence</span>
         `;
       } else {
@@ -294,7 +294,7 @@ export class UploadController {
             <h4>Plan Details</h4>
             <p><strong>Plan Name:</strong> ${data.planName}</p>
             <p><strong>Policy Number:</strong> ${data.policyNumber}</p>
-            ${data.aiProcessed ? '<p><strong>Analysis:</strong> AI Processed</p>' : ''}
+            ${data.aiProcessed ? '<p><strong>Analysis:</strong> Perplexity AI Processed</p>' : ''}
           </div>
         </div>
       `;
@@ -318,14 +318,37 @@ export class UploadController {
       infoCards.innerHTML = cardsHtml;
     }
 
-    // Add AI analysis summary if available
-    if (data.aiProcessed && data.recommendations) {
+    // Add Perplexity AI analysis summary if available
+    if (data.aiSummary) {
       const aiSummary = document.createElement('div');
       aiSummary.className = 'ai-summary';
       aiSummary.innerHTML = `
         <div class="card">
           <div class="card__body">
-            <h4>🤖 AI Recommendations</h4>
+            <h4>🤖 Perplexity AI Summary</h4>
+            <div style="white-space: pre-line; font-size: var(--font-size-sm); line-height: 1.6;">
+              ${data.aiSummary}
+            </div>
+            <div class="ai-powered-by">
+              Powered by Perplexity AI
+            </div>
+          </div>
+        </div>
+      `;
+      
+      if (infoCards) {
+        infoCards.appendChild(aiSummary);
+      }
+    }
+
+    // Add AI recommendations if available
+    if (data.aiProcessed && data.recommendations) {
+      const recommendations = document.createElement('div');
+      recommendations.className = 'ai-summary';
+      recommendations.innerHTML = `
+        <div class="card">
+          <div class="card__body">
+            <h4>📋 AI Recommendations</h4>
             ${data.recommendations.priorityCategories ? 
               `<p><strong>Priority Categories:</strong> ${data.recommendations.priorityCategories.join(', ')}</p>` : ''}
             <p><strong>Categories Found:</strong> ${data.healthCategories.length} health coverage areas identified</p>
@@ -335,7 +358,7 @@ export class UploadController {
       `;
       
       if (infoCards) {
-        infoCards.appendChild(aiSummary);
+        infoCards.appendChild(recommendations);
       }
     }
   }

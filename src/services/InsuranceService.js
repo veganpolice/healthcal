@@ -73,7 +73,7 @@ export class InsuranceService {
    * @returns {Promise<Object>} Extracted insurance data with AI analysis
    */
   async processDocument(file) {
-    console.log('Processing insurance document with AI analysis:', file.name);
+    console.log('Processing insurance document with Perplexity AI analysis:', file.name);
     
     try {
       // Extract text from the file
@@ -85,7 +85,7 @@ export class InsuranceService {
       // Analyze with Perplexity AI
       const analysisResult = await perplexityService.analyzeInsuranceDocument(documentText);
       
-      console.log('AI Analysis completed:', analysisResult);
+      console.log('Perplexity AI Analysis completed:', analysisResult);
       
       // Enhance the result with additional processing
       return this.enhanceAnalysisResult(analysisResult, file);
@@ -112,7 +112,7 @@ export class InsuranceService {
         processedAt: new Date().toISOString()
       },
       aiProcessed: true,
-      confidence: this.calculateConfidence(analysisResult)
+      confidence: analysisResult.confidence || this.calculateConfidence(analysisResult)
     };
 
     // Ensure we have at least some basic categories
@@ -161,7 +161,8 @@ export class InsuranceService {
     return {
       ...this.demoData,
       aiProcessed: false,
-      confidence: 'demo'
+      confidence: 'demo',
+      aiSummary: "Demo mode - using sample insurance data. Upload a real policy document to see Perplexity AI analysis."
     };
   }
 

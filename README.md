@@ -15,6 +15,7 @@ A modern web application that uses AI to automate healthcare appointment schedul
 
 ### Perplexity AI Document Analysis
 - Automatically extracts health coverage categories from insurance documents
+- Uses the prompt: "Summarize in point form each non-acute benefit the user has, such as massage or dental, that they can use voluntarily each year"
 - Identifies coverage percentages, annual limits, and frequencies
 - Generates personalized questionnaires based on your specific coverage
 - Provides confidence scoring for analysis accuracy
@@ -28,6 +29,9 @@ The system intelligently identifies various health coverage categories including
 - Mental Health Services
 - Chiropractic Care
 - Naturopathic Medicine
+- Acupuncture
+- Podiatry
+- Osteopathy
 - And more based on your specific policy
 
 ## 🏗️ Architecture

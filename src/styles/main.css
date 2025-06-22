@@ -64,7 +64,7 @@
   }
 }
 
-/* AI Analysis specific styles */
+/* Perplexity AI Analysis specific styles */
 .confidence-badge {
   display: inline-block;
   padding: var(--space-2) var(--space-8);

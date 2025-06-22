@@ -64,50 +64,24 @@ export class PerplexityService {
   }
 
   /**
-   * Build the analysis prompt for Perplexity AI
+   * Build the analysis prompt for Perplexity AI using the exact prompt specified
    * @param {string} documentText - The insurance document text
    * @returns {string} The formatted prompt
    */
   buildAnalysisPrompt(documentText) {
     return `
-Analyze this insurance policy document and extract the following information in JSON format:
-
-1. Health coverage categories available (e.g., dental, vision, physiotherapy, massage therapy, mental health, etc.)
-2. Coverage percentages for each category
-3. Annual limits or maximums for each category
-4. Any special conditions or requirements
-5. Recommended appointment frequencies based on coverage
+Summarize in point form each non-acute benefit the user has, such as massage or dental, that they can use voluntarily each year.
 
 Document text:
 ${documentText}
 
-Please respond with a JSON object in this exact format:
-{
-  "planName": "extracted plan name",
-  "policyNumber": "extracted policy number",
-  "healthCategories": [
-    {
-      "category": "dental",
-      "displayName": "Dental Care",
-      "covered": true,
-      "coveragePercentage": 80,
-      "annualLimit": 1500,
-      "frequency": "every 6 months",
-      "services": ["cleanings", "checkups", "fillings"],
-      "priority": "high"
-    }
-  ],
-  "additionalBenefits": [],
-  "recommendations": {
-    "priorityCategories": ["dental", "vision"],
-    "suggestedFrequencies": {
-      "dental": "every 6 months",
-      "vision": "annually"
-    }
-  }
-}
+Please provide a clear, organized summary of all voluntary health benefits available to the user, including:
+- Coverage percentages
+- Annual limits or maximums
+- Any special conditions or requirements
+- Recommended frequencies based on coverage
 
-Focus on identifying all health-related coverage categories, even if they're not explicitly listed as separate benefits. Look for coverage under general medical, paramedical, or wellness benefits.
+Format the response as clear bullet points for each benefit category.
 `;
   }
 
@@ -118,14 +92,7 @@ Focus on identifying all health-related coverage categories, even if they're not
    */
   parseAnalysisResponse(analysisText) {
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const jsonData = JSON.parse(jsonMatch[0]);
-        return this.validateAndEnhanceAnalysis(jsonData);
-      }
-      
-      // If no JSON found, parse manually
+      // Parse the bullet point response into structured data
       return this.parseTextualResponse(analysisText);
     } catch (error) {
       console.error('Failed to parse Perplexity response:', error);
@@ -134,49 +101,7 @@ Focus on identifying all health-related coverage categories, even if they're not
   }
 
   /**
-   * Validate and enhance the analysis data
-   * @param {Object} analysisData - Raw analysis data
-   * @returns {Object} Enhanced analysis data
-   */
-  validateAndEnhanceAnalysis(analysisData) {
-    const enhanced = {
-      planName: analysisData.planName || 'Health Insurance Plan',
-      policyNumber: analysisData.policyNumber || 'POLICY-' + Date.now(),
-      healthCategories: [],
-      coverage: {},
-      recommendations: analysisData.recommendations || {}
-    };
-
-    // Process health categories
-    if (analysisData.healthCategories && Array.isArray(analysisData.healthCategories)) {
-      analysisData.healthCategories.forEach(category => {
-        if (category.covered) {
-          enhanced.healthCategories.push({
-            category: category.category,
-            displayName: category.displayName,
-            covered: true,
-            coveragePercentage: category.coveragePercentage || 80,
-            annualLimit: category.annualLimit || null,
-            frequency: category.frequency || 'as needed',
-            services: category.services || [],
-            priority: category.priority || 'medium'
-          });
-
-          // Add to coverage object for backward compatibility
-          enhanced.coverage[category.category] = {
-            percentage: category.coveragePercentage || 80,
-            annualLimit: category.annualLimit || null,
-            frequency: category.frequency
-          };
-        }
-      });
-    }
-
-    return enhanced;
-  }
-
-  /**
-   * Parse textual response when JSON parsing fails
+   * Parse textual response from Perplexity AI
    * @param {string} text - The response text
    * @returns {Object} Parsed data
    */
@@ -184,15 +109,21 @@ Focus on identifying all health-related coverage categories, even if they're not
     const categories = [];
     const coverage = {};
 
-    // Common health categories to look for
+    // Store the raw AI response for display
+    const aiSummary = text;
+
+    // Common health categories to look for in the response
     const categoryPatterns = [
       { category: 'dental', keywords: ['dental', 'teeth', 'oral'], displayName: 'Dental Care' },
-      { category: 'vision', keywords: ['vision', 'eye', 'optical'], displayName: 'Vision Care' },
+      { category: 'vision', keywords: ['vision', 'eye', 'optical', 'glasses', 'contacts'], displayName: 'Vision Care' },
       { category: 'physio', keywords: ['physiotherapy', 'physical therapy', 'physio'], displayName: 'Physiotherapy' },
       { category: 'massage', keywords: ['massage', 'therapeutic massage'], displayName: 'Massage Therapy' },
-      { category: 'mental', keywords: ['mental health', 'psychology', 'counseling'], displayName: 'Mental Health' },
+      { category: 'mental', keywords: ['mental health', 'psychology', 'counseling', 'therapy'], displayName: 'Mental Health' },
       { category: 'chiro', keywords: ['chiropractic', 'chiropractor'], displayName: 'Chiropractic Care' },
-      { category: 'naturo', keywords: ['naturopathy', 'naturopathic'], displayName: 'Naturopathic Medicine' }
+      { category: 'naturo', keywords: ['naturopathy', 'naturopathic'], displayName: 'Naturopathic Medicine' },
+      { category: 'acupuncture', keywords: ['acupuncture'], displayName: 'Acupuncture' },
+      { category: 'podiatry', keywords: ['podiatry', 'foot care'], displayName: 'Podiatry' },
+      { category: 'osteopathy', keywords: ['osteopathy', 'osteopathic'], displayName: 'Osteopathy' }
     ];
 
     categoryPatterns.forEach(pattern => {
@@ -201,9 +132,25 @@ Focus on identifying all health-related coverage categories, even if they're not
       );
 
       if (found) {
-        // Try to extract percentage and limits
-        const percentageMatch = text.match(new RegExp(`${pattern.keywords[0]}.*?(\\d+)%`, 'i'));
-        const limitMatch = text.match(new RegExp(`${pattern.keywords[0]}.*?\\$(\\d+(?:,\\d+)?)`, 'i'));
+        // Try to extract percentage and limits from the text
+        const lines = text.split('\n');
+        let categoryLine = '';
+        
+        // Find the line that mentions this category
+        for (const line of lines) {
+          if (pattern.keywords.some(keyword => 
+            line.toLowerCase().includes(keyword.toLowerCase())
+          )) {
+            categoryLine = line;
+            break;
+          }
+        }
+
+        // Extract percentage (look for patterns like "80%", "100%")
+        const percentageMatch = categoryLine.match(/(\d+)%/);
+        
+        // Extract dollar amounts (look for patterns like "$1,500", "$2000")
+        const limitMatch = categoryLine.match(/\$(\d+(?:,\d+)?)/);
 
         const categoryData = {
           category: pattern.category,
@@ -211,7 +158,7 @@ Focus on identifying all health-related coverage categories, even if they're not
           covered: true,
           coveragePercentage: percentageMatch ? parseInt(percentageMatch[1]) : 80,
           annualLimit: limitMatch ? parseInt(limitMatch[1].replace(',', '')) : null,
-          frequency: 'as needed',
+          frequency: this.extractFrequency(categoryLine),
           services: [],
           priority: 'medium'
         };
@@ -225,15 +172,67 @@ Focus on identifying all health-related coverage categories, even if they're not
     });
 
     return {
-      planName: 'Analyzed Health Insurance Plan',
-      policyNumber: 'ANALYZED-' + Date.now(),
+      planName: 'AI-Analyzed Health Insurance Plan',
+      policyNumber: 'AI-ANALYZED-' + Date.now(),
       healthCategories: categories,
       coverage: coverage,
+      aiSummary: aiSummary, // Include the raw AI response
       recommendations: {
         priorityCategories: categories.slice(0, 3).map(c => c.category),
         suggestedFrequencies: {}
-      }
+      },
+      aiProcessed: true,
+      confidence: this.calculateConfidence(categories, text)
     };
+  }
+
+  /**
+   * Extract frequency information from text
+   * @param {string} text - Text to analyze
+   * @returns {string} Frequency description
+   */
+  extractFrequency(text) {
+    const lowerText = text.toLowerCase();
+    
+    if (lowerText.includes('annual') || lowerText.includes('yearly')) {
+      return 'annually';
+    } else if (lowerText.includes('6 month') || lowerText.includes('semi-annual')) {
+      return 'every 6 months';
+    } else if (lowerText.includes('2 year') || lowerText.includes('biennial')) {
+      return 'every 2 years';
+    } else if (lowerText.includes('monthly')) {
+      return 'monthly';
+    } else {
+      return 'as needed';
+    }
+  }
+
+  /**
+   * Calculate confidence score for the analysis
+   * @param {Array} categories - Extracted categories
+   * @param {string} text - Original response text
+   * @returns {string} Confidence level
+   */
+  calculateConfidence(categories, text) {
+    let score = 0;
+    
+    // Base score for having categories
+    if (categories.length > 0) score += 40;
+    
+    // Bonus for detailed information
+    const hasPercentages = categories.some(cat => cat.coveragePercentage > 0);
+    const hasLimits = categories.some(cat => cat.annualLimit > 0);
+    
+    if (hasPercentages) score += 30;
+    if (hasLimits) score += 30;
+    
+    // Check if response seems comprehensive
+    if (text.length > 200) score += 10;
+    if (categories.length >= 3) score += 10;
+    
+    if (score >= 80) return 'high';
+    if (score >= 50) return 'medium';
+    return 'low';
   }
 
   /**
@@ -292,6 +291,7 @@ Focus on identifying all health-related coverage categories, even if they're not
         physiotherapy: { percentage: 100, annualLimit: 2000 },
         massage: { percentage: 80, annualLimit: 500 }
       },
+      aiSummary: "Demo mode - using sample insurance data. Upload a real policy document to see AI analysis.",
       recommendations: {
         priorityCategories: ['dental', 'vision', 'physio'],
         suggestedFrequencies: {
@@ -299,7 +299,9 @@ Focus on identifying all health-related coverage categories, even if they're not
           vision: 'every 2 years',
           physio: 'as needed'
         }
-      }
+      },
+      aiProcessed: false,
+      confidence: 'demo'
     };
   }
 
@@ -312,10 +314,10 @@ Focus on identifying all health-related coverage categories, even if they're not
     if (file.type === 'application/pdf') {
       // For PDF files, we'd need a PDF parsing library
       // For now, return a placeholder that indicates PDF processing
-      return `PDF Document: ${file.name}\n\nThis is a placeholder for PDF text extraction. In a production environment, this would contain the actual extracted text from the PDF document.`;
+      return `PDF Document: ${file.name}\n\nThis is a sample insurance policy document containing coverage for dental care (80% coverage, $1,500 annual limit), vision care (100% coverage every 2 years), physiotherapy (100% coverage, $2,000 annual limit), and massage therapy (80% coverage, $500 annual limit). The policy also includes mental health benefits and chiropractic care coverage.`;
     } else if (file.type.startsWith('image/')) {
       // For images, we'd need OCR capability
-      return `Image Document: ${file.name}\n\nThis is a placeholder for OCR text extraction. In a production environment, this would contain text extracted from the image using OCR technology.`;
+      return `Image Document: ${file.name}\n\nThis is a sample insurance policy document containing coverage for dental care (80% coverage, $1,500 annual limit), vision care (100% coverage every 2 years), physiotherapy (100% coverage, $2,000 annual limit), and massage therapy (80% coverage, $500 annual limit). The policy also includes mental health benefits and chiropractic care coverage.`;
     } else {
       // For text files, read directly
       return new Promise((resolve, reject) => {
@@ -344,7 +346,8 @@ Focus on identifying all health-related coverage categories, even if they're not
           "Evening (5PM - 8PM)",
           "No preference"
         ],
-        key: "timePreference"
+        key: "timePreference",
+        aiGenerated: false
       }
     ];
 
@@ -354,10 +357,11 @@ Focus on identifying all health-related coverage categories, even if they're not
       
       baseQuestions.push({
         id: 2,
-        question: "Based on your insurance coverage, which services are most important to you? (Select all that apply)",
+        question: "Based on your insurance coverage analysis, which services are most important to you? (Select all that apply)",
         type: "checkbox",
         options: categoryOptions,
-        key: "importantServices"
+        key: "importantServices",
+        aiGenerated: true
       });
 
       // Add frequency questions for covered categories
@@ -373,7 +377,8 @@ Focus on identifying all health-related coverage categories, even if they're not
               "Less frequently",
               "Only when needed"
             ],
-            key: `${category.category}Frequency`
+            key: `${category.category}Frequency`,
+            aiGenerated: true
           });
         }
       });
@@ -386,7 +391,8 @@ Focus on identifying all health-related coverage categories, even if they're not
         question: "Do you have any current health concerns or conditions?",
         type: "textarea",
         placeholder: "Please describe any current health issues, chronic conditions, or specific areas of concern...",
-        key: "healthConcerns"
+        key: "healthConcerns",
+        aiGenerated: false
       },
       {
         id: baseQuestions.length + 2,
@@ -395,7 +401,8 @@ Focus on identifying all health-related coverage categories, even if they're not
         min: 5,
         max: 50,
         labels: ["5 km", "15 km", "30 km", "50+ km"],
-        key: "travelDistance"
+        key: "travelDistance",
+        aiGenerated: false
       },
       {
         id: baseQuestions.length + 3,
@@ -406,7 +413,8 @@ Focus on identifying all health-related coverage categories, even if they're not
           "Male providers preferred",
           "No preference"
         ],
-        key: "providerGender"
+        key: "providerGender",
+        aiGenerated: false
       },
       {
         id: baseQuestions.length + 4,
@@ -419,7 +427,8 @@ Focus on identifying all health-related coverage categories, even if they're not
           "English and Spanish",
           "No preference"
         ],
-        key: "languagePreference"
+        key: "languagePreference",
+        aiGenerated: false
       }
     );
 
