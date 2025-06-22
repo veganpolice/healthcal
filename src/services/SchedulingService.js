@@ -10,6 +10,15 @@ export class SchedulingService {
     this.appointmentService = new AppointmentService();
     this.providerService = new ProviderService();
     this.insuranceService = new InsuranceService();
+    
+    // Define category mapping for provider selection
+    this.categoryMap = {
+      'dental': 'Dentist',
+      'vision': 'Optometrist',
+      'physio': 'Physiotherapist',
+      'massage': 'Massage Therapist',
+      'medical': 'Family Physician'
+    };
   }
 
   /**
@@ -210,17 +219,10 @@ export class SchedulingService {
     const providerService = new ProviderService();
     const providers = providerService.sampleProviders;
     
-    // Filter by category
+    // Filter by category using the class property
     const categoryProviders = providers.filter(provider => {
-      const specialtyMap = {
-        'dental': 'Dentist',
-        'vision': 'Optometrist',
-        'physio': 'Physiotherapist',
-        'massage': 'Massage Therapist',
-        'medical': 'Family Physician'
-      };
-      
-      return provider.specialty.includes(categoryMap[category]);
+      const expectedSpecialty = this.categoryMap[category];
+      return provider.specialty.includes(expectedSpecialty);
     });
 
     if (categoryProviders.length === 0) {
