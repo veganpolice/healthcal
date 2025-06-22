@@ -20,7 +20,8 @@ export class NavigationController {
           'home': 'welcome',
           'upload': 'upload',
           'preferences': 'questionnaire',
-          'calendar': 'calendar'
+          'calendar': 'calendar',
+          'profile': 'profile'
         };
         
         if (pageMap[page]) {
@@ -29,12 +30,21 @@ export class NavigationController {
       });
     });
 
-    // Get Started button - use the correct ID from the HTML
+    // Get Started button
     const getStartedBtn = document.getElementById('get-started-btn');
     if (getStartedBtn) {
       getStartedBtn.removeAttribute('onclick');
       getStartedBtn.addEventListener('click', () => {
         this.pageManager.showPage('upload');
+      });
+    }
+
+    // Profile page sign out button
+    const signOutBtnProfile = document.getElementById('signout-btn-profile');
+    if (signOutBtnProfile) {
+      signOutBtnProfile.addEventListener('click', () => {
+        // This will be handled by AuthController
+        document.getElementById('signout-btn').click();
       });
     }
   }
