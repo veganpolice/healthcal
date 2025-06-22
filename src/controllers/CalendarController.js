@@ -144,6 +144,9 @@ export class CalendarController {
     if (appointments.length > 0) {
       appointments.forEach(appointment => {
         const date = new Date(appointment.date);
+        const statusIcon = this.getStatusIcon(appointment.status);
+        const statusClass = this.getStatusClass(appointment.status);
+        
         html += `
           <div class="appointment-item" data-appointment-id="${appointment.id}">
             <div class="appointment-dot ${appointment.category}"></div>
@@ -155,6 +158,10 @@ export class CalendarController {
                 day: 'numeric' 
               })}</div>
             </div>
+            <div class="appointment-status ${statusClass}">
+              <span class="status-icon">${statusIcon}</span>
+              <span class="status-text">${this.getStatusText(appointment.status)}</span>
+            </div>
           </div>`;
       });
     } else {
@@ -163,6 +170,60 @@ export class CalendarController {
     
     html += '</div></div>';
     return html;
+  }
+
+  /**
+   * Get status icon for appointment status
+   * @param {string} status - Appointment status
+   * @returns {string} Icon HTML
+   */
+  getStatusIcon(status) {
+    switch (status) {
+      case 'proposed':
+        return '📋'; // Clipboard icon for proposed
+      case 'requested':
+        return '⏳'; // Hourglass icon for requested/pending
+      case 'confirmed':
+        return '✅'; // Check mark for confirmed
+      default:
+        return '📋';
+    }
+  }
+
+  /**
+   * Get CSS class for appointment status
+   * @param {string} status - Appointment status
+   * @returns {string} CSS class
+   */
+  getStatusClass(status) {
+    switch (status) {
+      case 'proposed':
+        return 'status-proposed';
+      case 'requested':
+        return 'status-requested';
+      case 'confirmed':
+        return 'status-confirmed';
+      default:
+        return 'status-proposed';
+    }
+  }
+
+  /**
+   * Get human-readable status text
+   * @param {string} status - Appointment status
+   * @returns {string} Status text
+   */
+  getStatusText(status) {
+    switch (status) {
+      case 'proposed':
+        return 'Proposed';
+      case 'requested':
+        return 'Requested';
+      case 'confirmed':
+        return 'Confirmed';
+      default:
+        return 'Proposed';
+    }
   }
 
   setupAppointmentHandlers() {
