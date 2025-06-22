@@ -25,6 +25,8 @@ export class InsuranceService {
       const reader = new FileReader();
       reader.onload = async function(e) {
         try {
+          console.log('📄 Processing PDF file for text extraction...');
+          
           // For now, we'll use a simple text extraction approach
           // In a real implementation, you'd use a PDF parsing library
           const arrayBuffer = e.target.result;
@@ -33,9 +35,12 @@ export class InsuranceService {
           // In production, you'd use pdf-lib or PDF.js
           const text = "Sample insurance document text for BC Health Plus Premium policy HP-2024-789123 with dental coverage 80% up to $1500 annually, physiotherapy 100% up to $2000, massage therapy 80% up to $500, and vision care covered every 2 years.";
           
+          console.log('✅ PDF text extraction completed (using sample text)');
+          console.log('📝 Extracted text:', text);
+          
           resolve(text);
         } catch (error) {
-          console.error('Error extracting text from PDF:', error);
+          console.error('❌ Error extracting text from PDF:', error);
           resolve("Unable to extract text from PDF. Using fallback analysis.");
         }
       };
@@ -53,90 +58,104 @@ export class InsuranceService {
     // Hardcoded API key as requested
     const apiKey = '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';
 
-    console.log('Environment check:', {
-      hasApiKey: !!apiKey,
-      nodeEnv: typeof process !== 'undefined' ? process.env?.NODE_ENV : 'undefined',
-      isProduction: window.location.hostname !== 'localhost',
-      hostname: window.location.hostname,
-      envKeys: this.getAvailableEnvKeys()
-    });
+    console.log('🤖 Starting Perplexity AI analysis...');
+    console.log('🔑 API Key configured:', !!apiKey);
+    console.log('📝 Document text to analyze:');
+    console.log('═'.repeat(60));
+    console.log(documentText);
+    console.log('═'.repeat(60));
+    console.log('📊 Text length:', documentText.length, 'characters');
 
     if (!apiKey) {
-      console.warn('Perplexity API key not configured. Using fallback analysis.');
+      console.warn('⚠️ Perplexity API key not configured. Using fallback analysis.');
       return this.getFallbackAnalysis(documentText);
     }
 
     try {
-      console.log('Making Perplexity API request...');
+      console.log('🚀 Making Perplexity API request...');
       
+      const requestPayload = {
+        model: 'llama-3.1-sonar-small-128k-online',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert insurance document analyzer. Extract key information from insurance documents and return structured data in JSON format. IMPORTANT: Return ONLY valid JSON without any markdown formatting, code blocks, or additional text.'
+          },
+          {
+            role: 'user',
+            content: `Please analyze this insurance document text and extract the following information in JSON format:
+            - planName: The name of the insurance plan
+            - policyNumber: The policy number
+            - coverage: An object with coverage details for different services (dental, physiotherapy, massage, vision, medical)
+            
+            For each coverage type, include:
+            - percentage: Coverage percentage (as number)
+            - annualLimit: Annual limit in dollars (as number, no currency symbols)
+            - frequency: How often covered (if applicable)
+            
+            Document text: ${documentText}
+            
+            Return only valid JSON, no markdown code blocks, no additional text or formatting.`
+          }
+        ],
+        max_tokens: 1000,
+        temperature: 0.1
+      };
+
+      console.log('📤 Request payload:');
+      console.log(JSON.stringify(requestPayload, null, 2));
+
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: 'llama-3.1-sonar-small-128k-online',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert insurance document analyzer. Extract key information from insurance documents and return structured data in JSON format. IMPORTANT: Return ONLY valid JSON without any markdown formatting, code blocks, or additional text.'
-            },
-            {
-              role: 'user',
-              content: `Please analyze this insurance document text and extract the following information in JSON format:
-              - planName: The name of the insurance plan
-              - policyNumber: The policy number
-              - coverage: An object with coverage details for different services (dental, physiotherapy, massage, vision, medical)
-              
-              For each coverage type, include:
-              - percentage: Coverage percentage (as number)
-              - annualLimit: Annual limit in dollars (as number, no currency symbols)
-              - frequency: How often covered (if applicable)
-              
-              Document text: ${documentText}
-              
-              Return only valid JSON, no markdown code blocks, no additional text or formatting.`
-            }
-          ],
-          max_tokens: 1000,
-          temperature: 0.1
-        })
+        body: JSON.stringify(requestPayload)
       });
+
+      console.log('📥 Perplexity API response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Perplexity API error:', response.status, errorText);
+        console.error('❌ Perplexity API error:', response.status, errorText);
         throw new Error(`API request failed: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('Perplexity API response:', data);
+      console.log('📋 Perplexity API response data:');
+      console.log(JSON.stringify(data, null, 2));
 
       if (data.choices && data.choices[0] && data.choices[0].message) {
         try {
           let responseContent = data.choices[0].message.content;
-          console.log('Raw response content:', responseContent);
+          console.log('📝 Raw response content:');
+          console.log('─'.repeat(50));
+          console.log(responseContent);
+          console.log('─'.repeat(50));
           
           // Clean up the response content to handle markdown code blocks
           responseContent = this.cleanJsonResponse(responseContent);
-          console.log('Cleaned response content:', responseContent);
+          console.log('🧹 Cleaned response content:');
+          console.log('─'.repeat(50));
+          console.log(responseContent);
+          console.log('─'.repeat(50));
           
           const extractedData = JSON.parse(responseContent);
-          console.log('Successfully parsed insurance data:', extractedData);
+          console.log('✅ Successfully parsed insurance data:', extractedData);
           return this.validateAndNormalizeData(extractedData);
         } catch (parseError) {
-          console.error('Error parsing Perplexity response:', parseError);
-          console.error('Response content was:', data.choices[0].message.content);
+          console.error('❌ Error parsing Perplexity response:', parseError);
+          console.error('📝 Response content was:', data.choices[0].message.content);
           return this.getFallbackAnalysis(documentText);
         }
       } else {
-        console.error('Unexpected Perplexity response format:', data);
+        console.error('❌ Unexpected Perplexity response format:', data);
         return this.getFallbackAnalysis(documentText);
       }
 
     } catch (error) {
-      console.error('Perplexity API request failed:', error);
+      console.error('❌ Perplexity API request failed:', error);
       return this.getFallbackAnalysis(documentText);
     }
   }
@@ -147,6 +166,8 @@ export class InsuranceService {
    * @returns {string} Cleaned JSON string
    */
   cleanJsonResponse(responseContent) {
+    console.log('🧹 Cleaning JSON response...');
+    
     // Remove markdown code blocks
     let cleaned = responseContent.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
     
@@ -159,8 +180,10 @@ export class InsuranceService {
     
     if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
       cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+      console.log('🎯 Extracted JSON portion from response');
     }
     
+    console.log('✅ JSON cleaning completed');
     return cleaned;
   }
 
@@ -203,6 +226,8 @@ export class InsuranceService {
    * @returns {Object} Normalized data
    */
   validateAndNormalizeData(data) {
+    console.log('🔍 Validating and normalizing extracted data...');
+    
     const normalized = {
       planName: data.planName || "Unknown Plan",
       policyNumber: data.policyNumber || "Unknown Policy",
@@ -223,6 +248,7 @@ export class InsuranceService {
       }
     });
 
+    console.log('✅ Data validation and normalization completed:', normalized);
     return normalized;
   }
 
@@ -232,7 +258,7 @@ export class InsuranceService {
    * @returns {Object} Fallback insurance data
    */
   getFallbackAnalysis(documentText) {
-    console.log('Using fallback analysis for document text:', documentText.substring(0, 100) + '...');
+    console.log('🔄 Using fallback analysis for document text:', documentText.substring(0, 100) + '...');
     
     // Simple keyword-based extraction as fallback
     const text = documentText.toLowerCase();
@@ -252,7 +278,7 @@ export class InsuranceService {
       policyNumber = policyMatches[1].trim();
     }
 
-    return {
+    const fallbackData = {
       planName,
       policyNumber,
       coverage: {
@@ -263,6 +289,9 @@ export class InsuranceService {
         medical: { percentage: 100, annualLimit: 0 }
       }
     };
+
+    console.log('✅ Fallback analysis completed:', fallbackData);
+    return fallbackData;
   }
 
   /**
@@ -271,31 +300,35 @@ export class InsuranceService {
    * @returns {Promise<Object>} Extracted insurance data
    */
   async processDocument(file) {
-    console.log('Processing insurance document:', file.name, file.type);
+    console.log('🚀 Processing insurance document:', file.name, file.type);
+    console.log('📊 File size:', Math.round(file.size / 1024), 'KB');
     
     try {
       // Extract text from the document
       let documentText;
       
       if (file.type === 'application/pdf') {
+        console.log('📄 Processing PDF file...');
         documentText = await this.extractTextFromPDF(file);
       } else if (file.type.startsWith('image/')) {
+        console.log('🖼️ Processing image file...');
         // For images, we'd need OCR - for now use fallback
         documentText = "Image document - OCR not implemented. Using sample data.";
       } else {
+        console.log('📝 Processing text file...');
         documentText = await this.readTextFile(file);
       }
       
-      console.log('Extracted text length:', documentText.length);
+      console.log('📝 Text extraction completed, length:', documentText.length, 'characters');
       
       // Analyze the extracted text
       const analysisResult = await this.analyzeInsuranceDocument(documentText);
       
-      console.log('Final analysis result:', analysisResult);
+      console.log('🎉 Final analysis result:', analysisResult);
       return analysisResult;
       
     } catch (error) {
-      console.error('Error processing document:', error);
+      console.error('❌ Error processing document:', error);
       return this.getFallbackAnalysis("Error processing document");
     }
   }
@@ -376,6 +409,8 @@ export class InsuranceService {
    * @returns {Array} Dynamic questionnaire questions
    */
   generateQuestionnaire(extractedData) {
+    console.log('📋 Generating dynamic questionnaire based on extracted data...');
+    
     const baseQuestions = [
       {
         id: 1,
@@ -397,6 +432,8 @@ export class InsuranceService {
       const coveredServices = Object.keys(extractedData.coverage).filter(service => 
         extractedData.coverage[service].percentage > 0
       );
+
+      console.log('🎯 Found covered services:', coveredServices);
 
       if (coveredServices.length > 0) {
         const serviceDisplayNames = {
@@ -424,6 +461,7 @@ export class InsuranceService {
         coveredServices.forEach((service, index) => {
           const coverage = extractedData.coverage[service];
           if (coverage.percentage >= 80) {
+            console.log(`➕ Adding frequency question for ${service} (${coverage.percentage}% coverage)`);
             baseQuestions.push({
               id: baseQuestions.length + 1,
               question: `How often would you like ${serviceDisplayNames[service] || service} appointments?`,
@@ -490,6 +528,7 @@ export class InsuranceService {
       }
     );
 
+    console.log('✅ Generated', baseQuestions.length, 'questions for dynamic questionnaire');
     return baseQuestions;
   }
 }
