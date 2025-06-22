@@ -12,7 +12,7 @@ export class AppointmentService {
         type: "Dental Cleaning",
         provider: "Dr. Michael Rodriguez",
         duration: "60 minutes",
-        estimatedCost: "$120 (after insurance)",
+        estimated_cost: "$120 (after insurance)",
         status: "proposed",
         category: "dental"
       },
@@ -22,7 +22,7 @@ export class AppointmentService {
         type: "Eye Exam",
         provider: "Dr. Amanda Foster",
         duration: "45 minutes",
-        estimatedCost: "$0 (fully covered)",
+        estimated_cost: "$0 (fully covered)",
         status: "proposed",
         category: "vision"
       },
@@ -32,7 +32,7 @@ export class AppointmentService {
         type: "Physiotherapy Assessment",
         provider: "Dr. Sarah Chen",
         duration: "45 minutes",
-        estimatedCost: "$0 (fully covered)",
+        estimated_cost: "$0 (fully covered)",
         status: "proposed",
         category: "physio"
       },
@@ -42,7 +42,7 @@ export class AppointmentService {
         type: "Massage Therapy",
         provider: "Lisa Thompson",
         duration: "60 minutes",
-        estimatedCost: "$25 (after insurance)",
+        estimated_cost: "$25 (after insurance)",
         status: "proposed",
         category: "massage"
       },
@@ -52,7 +52,7 @@ export class AppointmentService {
         type: "Dental Cleaning",
         provider: "Dr. Michael Rodriguez",
         duration: "60 minutes",
-        estimatedCost: "$120 (after insurance)",
+        estimated_cost: "$120 (after insurance)",
         status: "proposed",
         category: "dental"
       },
@@ -62,7 +62,7 @@ export class AppointmentService {
         type: "Annual Physical",
         provider: "Dr. Jennifer Kim",
         duration: "30 minutes",
-        estimatedCost: "$0 (fully covered)",
+        estimated_cost: "$0 (fully covered)",
         status: "proposed",
         category: "medical"
       },
@@ -72,7 +72,7 @@ export class AppointmentService {
         type: "Physiotherapy Follow-up",
         provider: "Dr. Sarah Chen",
         duration: "30 minutes",
-        estimatedCost: "$0 (fully covered)",
+        estimated_cost: "$0 (fully covered)",
         status: "proposed",
         category: "physio"
       },
@@ -82,7 +82,7 @@ export class AppointmentService {
         type: "Massage Therapy",
         provider: "Lisa Thompson",
         duration: "60 minutes",
-        estimatedCost: "$25 (after insurance)",
+        estimated_cost: "$25 (after insurance)",
         status: "proposed",
         category: "massage"
       },
@@ -92,7 +92,7 @@ export class AppointmentService {
         type: "Eye Exam",
         provider: "Dr. Amanda Foster",
         duration: "45 minutes",
-        estimatedCost: "$0 (fully covered)",
+        estimated_cost: "$0 (fully covered)",
         status: "proposed",
         category: "vision"
       },
@@ -102,7 +102,7 @@ export class AppointmentService {
         type: "Dental Cleaning",
         provider: "Dr. Michael Rodriguez",
         duration: "60 minutes",
-        estimatedCost: "$120 (after insurance)",
+        estimated_cost: "$120 (after insurance)",
         status: "proposed",
         category: "dental"
       },
@@ -112,7 +112,7 @@ export class AppointmentService {
         type: "Annual Physical Follow-up",
         provider: "Dr. Jennifer Kim",
         duration: "20 minutes",
-        estimatedCost: "$0 (fully covered)",
+        estimated_cost: "$0 (fully covered)",
         status: "proposed",
         category: "medical"
       }
