@@ -410,7 +410,7 @@ export class QuestionnaireController {
           submitBtn.className = submitBtn.className.replace('btn--primary', 'btn--secondary');
         }
         
-        // Emit completion event
+        // Emit completion event to trigger calendar navigation
         this.emit('questionnaireComplete', this.userAnswers);
       } else {
         this.showErrorMessage('Failed to save preferences. Please try again.');

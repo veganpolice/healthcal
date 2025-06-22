@@ -37,11 +37,12 @@ export class SchedulingService {
   }
 
   /**
-   * Get base schedule template
+   * Get base schedule template with more comprehensive appointments
    * @returns {Array} Base appointment template
    */
   getBaseScheduleTemplate() {
     return [
+      // Dental appointments
       {
         type: "Dental Cleaning",
         category: "dental",
@@ -50,12 +51,28 @@ export class SchedulingService {
         priority: "high"
       },
       {
+        type: "Dental Checkup",
+        category: "dental",
+        duration: "45 minutes",
+        frequency: "every 6 months",
+        priority: "high"
+      },
+      // Vision care
+      {
         type: "Eye Exam",
         category: "vision",
         duration: "45 minutes",
         frequency: "every 2 years",
         priority: "medium"
       },
+      {
+        type: "Vision Screening",
+        category: "vision",
+        duration: "30 minutes",
+        frequency: "yearly",
+        priority: "medium"
+      },
+      // Medical appointments
       {
         type: "Annual Physical",
         category: "medical",
@@ -64,6 +81,21 @@ export class SchedulingService {
         priority: "high"
       },
       {
+        type: "Blood Work",
+        category: "medical",
+        duration: "15 minutes",
+        frequency: "yearly",
+        priority: "high"
+      },
+      {
+        type: "Preventive Screening",
+        category: "medical",
+        duration: "30 minutes",
+        frequency: "yearly",
+        priority: "medium"
+      },
+      // Physiotherapy
+      {
         type: "Physiotherapy Assessment",
         category: "physio",
         duration: "45 minutes",
@@ -71,10 +103,25 @@ export class SchedulingService {
         priority: "medium"
       },
       {
+        type: "Physiotherapy Session",
+        category: "physio",
+        duration: "30 minutes",
+        frequency: "monthly",
+        priority: "medium"
+      },
+      // Massage therapy
+      {
         type: "Massage Therapy",
         category: "massage",
         duration: "60 minutes",
         frequency: "monthly",
+        priority: "low"
+      },
+      {
+        type: "Therapeutic Massage",
+        category: "massage",
+        duration: "90 minutes",
+        frequency: "quarterly",
         priority: "low"
       }
     ];
@@ -110,7 +157,7 @@ export class SchedulingService {
     const appointments = [];
     const importantServices = userAnswers.importantServices || [];
     
-    // Skip if user didn't select this service as important
+    // Map service categories to user selections
     const serviceMap = {
       'dental': 'Dental care',
       'vision': 'Vision care',
@@ -119,7 +166,12 @@ export class SchedulingService {
       'medical': 'Preventive care'
     };
 
-    if (!importantServices.includes(serviceMap[template.category])) {
+    // Always include high priority appointments (medical, dental)
+    const shouldInclude = template.priority === 'high' || 
+                         importantServices.includes(serviceMap[template.category]) ||
+                         importantServices.length === 0; // Include all if no preferences set
+
+    if (!shouldInclude) {
       return appointments;
     }
 
@@ -171,17 +223,25 @@ export class SchedulingService {
         }
         break;
       case 'monthly':
+        // Generate appointments throughout the year (every 2-3 months)
+        for (let i = 0; i < 6; i++) {
+          const month = i * 2; // Every 2 months
+          dates.push(this.getOptimalDate(new Date(year, month, 15), timePreference));
+        }
+        break;
+      case 'quarterly':
         // Generate 4 appointments throughout the year
         for (let i = 0; i < 4; i++) {
-          const month = i * 3 + 3; // March, June, September, December
+          const month = i * 3; // March, June, September, December
           dates.push(this.getOptimalDate(new Date(year, month, 15), timePreference));
         }
         break;
       case 'as needed':
-        // Generate 2 appointments for assessment and follow-up
+        // Generate 2-3 appointments for assessment and follow-ups
         dates.push(
           this.getOptimalDate(new Date(year, 2, 10), timePreference),
-          this.getOptimalDate(new Date(year, 7, 14), timePreference)
+          this.getOptimalDate(new Date(year, 7, 14), timePreference),
+          this.getOptimalDate(new Date(year, 10, 20), timePreference)
         );
         break;
     }
