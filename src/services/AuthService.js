@@ -100,10 +100,16 @@ export class AuthService {
     }
 
     try {
+      // Determine the redirect URL based on environment
+      const isProduction = window.location.hostname !== 'localhost';
+      const redirectTo = isProduction 
+        ? 'https://healthcalai.netlify.app'
+        : window.location.origin;
+
       const { data, error } = await client.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: redirectTo,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
