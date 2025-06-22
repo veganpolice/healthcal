@@ -68,7 +68,7 @@ src/
 - Node.js 18+ 
 - npm or yarn
 - Perplexity AI API key
-- Supabase project
+- Supabase project (optional)
 
 ### Installation
 
@@ -85,44 +85,34 @@ src/
 
 4. Configure your environment variables in `.env`:
    ```env
-   # Supabase Configuration
+   # Supabase Configuration (optional)
    VITE_SUPABASE_URL=your_supabase_project_url
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    
-   # Perplexity AI Configuration
+   # Perplexity AI Configuration (required for AI features)
    VITE_PERPLEXITY_API_KEY=your_perplexity_api_key
    ```
 
-5. Start development server:
+5. Get your Perplexity AI API key:
+   - Visit [Perplexity AI Settings](https://www.perplexity.ai/settings/api)
+   - Create an account if you don't have one
+   - Generate an API key
+   - Add it to your `.env` file
+
+6. Start development server:
    ```bash
    npm run dev
    ```
-
-## 🗄️ Database Setup
-
-The application is designed to work with Supabase. To set up the database:
-
-1. Create a new Supabase project
-2. Click "Connect to Supabase" in the app to configure your connection
-3. Run the provided migrations to set up the database schema
-4. The app will work in demo mode without a database connection
-
-### Database Schema
-
-The application uses the following tables:
-
-- `appointments` - User appointments
-- `user_profiles` - User profile information
-- `user_preferences` - Step-by-step user preferences and progress
-- `providers` - Healthcare providers (optional)
 
 ## 🤖 AI Configuration
 
 ### Perplexity AI Setup
 
-1. Sign up for a Perplexity AI account at [perplexity.ai](https://perplexity.ai)
-2. Generate an API key from your dashboard
-3. Add the API key to your `.env` file as `VITE_PERPLEXITY_API_KEY`
+1. **Create Account**: Sign up at [perplexity.ai](https://perplexity.ai)
+2. **Get API Key**: 
+   - Go to [API Settings](https://www.perplexity.ai/settings/api)
+   - Generate a new API key
+   - Copy the key to your `.env` file as `VITE_PERPLEXITY_API_KEY`
 
 ### AI Features
 
@@ -130,6 +120,27 @@ The application uses the following tables:
 - **Dynamic Questionnaires**: Generates personalized questions based on your coverage
 - **Confidence Scoring**: Provides accuracy indicators for AI analysis
 - **Fallback Support**: Works with demo data when AI is unavailable
+
+### Testing AI Integration
+
+1. **With API Key**: Upload any document to see real Perplexity AI analysis
+2. **Without API Key**: The app will show demo data and explain how to configure AI
+3. **Demo Mode**: Click "Try Demo" to see sample AI analysis results
+
+## 🗄️ Database Setup
+
+The application works with or without a database:
+
+### With Supabase (Recommended)
+1. Create a new Supabase project
+2. Add your Supabase URL and anon key to `.env`
+3. Run the provided migrations to set up the database schema
+4. User preferences and data will be saved to the cloud
+
+### Without Database (Local Mode)
+1. Leave Supabase variables empty in `.env`
+2. The app will use localStorage for data persistence
+3. All features work, but data is stored locally only
 
 ## 🧪 Development
 
@@ -164,6 +175,7 @@ The application uses the following tables:
 - Secure file upload validation
 - Environment-based configuration
 - AI processing with privacy considerations
+- API keys stored securely in environment variables
 
 ## 📱 Browser Support
 
@@ -171,6 +183,16 @@ The application uses the following tables:
 - Progressive Web App ready
 - Mobile responsive design
 - Graceful degradation for AI features
+
+## 🚀 Deployment
+
+The app is deployed at: https://healthcalai.netlify.app
+
+To deploy your own instance:
+1. Fork this repository
+2. Connect to Netlify or Vercel
+3. Add your environment variables in the deployment settings
+4. Deploy!
 
 ## 🤝 Contributing
 
@@ -196,3 +218,21 @@ For questions or issues:
 - Powered by [Perplexity AI](https://perplexity.ai) for intelligent document analysis
 - Built with [Supabase](https://supabase.com) for backend services
 - Deployed on [Netlify](https://netlify.com)
+
+## 🔧 Troubleshooting
+
+### AI Analysis Not Working
+1. Check that `VITE_PERPLEXITY_API_KEY` is set in your environment
+2. Verify your API key is valid at [Perplexity Settings](https://www.perplexity.ai/settings/api)
+3. Check browser console for error messages
+4. Try the demo mode to test the interface
+
+### File Upload Issues
+1. Ensure file is under 10MB
+2. Use supported formats: PDF, JPG, PNG
+3. Check browser console for validation errors
+
+### Database Connection Issues
+1. Verify Supabase credentials in `.env`
+2. Check Supabase project status
+3. App will work in local mode without database

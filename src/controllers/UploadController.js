@@ -120,6 +120,8 @@ export class UploadController {
 
   async processFile(file) {
     try {
+      console.log('Starting file processing with Perplexity AI integration');
+      
       // Validate file
       const validation = this.fileUploadService.validateFile(file);
       if (!validation.isValid) {
@@ -131,11 +133,15 @@ export class UploadController {
       this.showProcessing();
 
       // Process with insurance service (now includes Perplexity AI analysis)
+      console.log('Calling InsuranceService.processDocument with Perplexity AI');
       const extractedData = await this.insuranceService.processDocument(file);
+      console.log('Received analysis result:', extractedData);
+      
       this.extractedData = extractedData;
 
       // Generate dynamic questionnaire based on analysis
       this.dynamicQuestionnaire = this.insuranceService.generateQuestionnaire(extractedData);
+      console.log('Generated dynamic questionnaire:', this.dynamicQuestionnaire);
 
       // Save the upload data
       await this.saveUploadData(file.name, file.type, file.size);
@@ -144,13 +150,13 @@ export class UploadController {
       this.showResults(extractedData);
     } catch (error) {
       console.error('File processing failed:', error);
-      alert('Failed to process document. Please try again.');
+      alert(`Failed to process document: ${error.message}. Please try again.`);
       this.hideProcessing();
     }
   }
 
   handleDemo() {
-    console.log('Demo button clicked - starting demo flow');
+    console.log('Demo button clicked - starting demo flow with AI simulation');
     
     // Set demo mode flag
     this.isDemoMode = true;
@@ -172,7 +178,7 @@ export class UploadController {
       this.showResults(demoData);
       // Reset demo mode after showing results
       this.isDemoMode = false;
-    }, 2000);
+    }, 3000); // Longer delay to simulate AI processing
   }
 
   /**
@@ -208,7 +214,7 @@ export class UploadController {
   }
 
   showProcessing() {
-    console.log('Showing processing section');
+    console.log('Showing processing section with AI analysis message');
     
     // Hide the upload area completely
     const uploadArea = document.getElementById('uploadArea');
@@ -225,6 +231,12 @@ export class UploadController {
       const processingText = processingSection.querySelector('p');
       if (processingText) {
         processingText.textContent = 'Perplexity AI analyzing your document and extracting coverage details...';
+      }
+      
+      // Update the heading to mention AI
+      const processingHeading = processingSection.querySelector('h3');
+      if (processingHeading) {
+        processingHeading.textContent = 'AI Processing Your Document...';
       }
     }
   }
@@ -243,7 +255,7 @@ export class UploadController {
   }
 
   showResults(data) {
-    console.log('Showing results section');
+    console.log('Showing results section with AI analysis data');
     
     // Hide processing section
     const processingSection = document.getElementById('processingSection');
@@ -278,7 +290,10 @@ export class UploadController {
           <span class="confidence-badge confidence-${data.confidence}">${data.confidence} confidence</span>
         `;
       } else {
-        title.textContent = 'Extracted Insurance Information';
+        title.innerHTML = `
+          <span>Insurance Information</span>
+          <span class="confidence-badge confidence-${data.confidence}">demo mode</span>
+        `;
       }
     }
 
@@ -294,7 +309,8 @@ export class UploadController {
             <h4>Plan Details</h4>
             <p><strong>Plan Name:</strong> ${data.planName}</p>
             <p><strong>Policy Number:</strong> ${data.policyNumber}</p>
-            ${data.aiProcessed ? '<p><strong>Analysis:</strong> Perplexity AI Processed</p>' : ''}
+            ${data.aiProcessed ? '<p><strong>Analysis:</strong> Perplexity AI Processed</p>' : '<p><strong>Mode:</strong> Demo Data</p>'}
+            ${data.aiError ? `<p style="color: var(--color-error); font-size: var(--font-size-sm);"><strong>Note:</strong> ${data.aiError}</p>` : ''}
           </div>
         </div>
       `;
@@ -325,12 +341,12 @@ export class UploadController {
       aiSummary.innerHTML = `
         <div class="card">
           <div class="card__body">
-            <h4>🤖 Perplexity AI Summary</h4>
+            <h4>🤖 ${data.aiProcessed ? 'Perplexity AI Analysis' : 'Demo Mode Information'}</h4>
             <div style="white-space: pre-line; font-size: var(--font-size-sm); line-height: 1.6;">
               ${data.aiSummary}
             </div>
             <div class="ai-powered-by">
-              Powered by Perplexity AI
+              ${data.aiProcessed ? 'Powered by Perplexity AI' : 'Demo Mode - Configure VITE_PERPLEXITY_API_KEY for AI analysis'}
             </div>
           </div>
         </div>
@@ -342,13 +358,13 @@ export class UploadController {
     }
 
     // Add AI recommendations if available
-    if (data.aiProcessed && data.recommendations) {
+    if (data.recommendations) {
       const recommendations = document.createElement('div');
       recommendations.className = 'ai-summary';
       recommendations.innerHTML = `
         <div class="card">
           <div class="card__body">
-            <h4>📋 AI Recommendations</h4>
+            <h4>📋 ${data.aiProcessed ? 'AI Recommendations' : 'Demo Recommendations'}</h4>
             ${data.recommendations.priorityCategories ? 
               `<p><strong>Priority Categories:</strong> ${data.recommendations.priorityCategories.join(', ')}</p>` : ''}
             <p><strong>Categories Found:</strong> ${data.healthCategories.length} health coverage areas identified</p>

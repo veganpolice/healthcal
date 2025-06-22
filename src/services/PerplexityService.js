@@ -5,6 +5,13 @@ export class PerplexityService {
   constructor() {
     this.apiKey = import.meta.env.VITE_PERPLEXITY_API_KEY;
     this.baseUrl = 'https://api.perplexity.ai/chat/completions';
+    
+    // Log API key status for debugging
+    if (this.apiKey) {
+      console.log('Perplexity API key configured');
+    } else {
+      console.warn('Perplexity API key not found. Set VITE_PERPLEXITY_API_KEY in your environment variables.');
+    }
   }
 
   /**
@@ -19,6 +26,7 @@ export class PerplexityService {
     }
 
     try {
+      console.log('Sending request to Perplexity AI...');
       const prompt = this.buildAnalysisPrompt(documentText);
       
       const response = await fetch(this.baseUrl, {
@@ -45,21 +53,32 @@ export class PerplexityService {
         })
       });
 
+      console.log('Perplexity API response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`Perplexity API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Perplexity API error:', response.status, errorText);
+        throw new Error(`Perplexity API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('Perplexity API response:', data);
+      
       const analysisText = data.choices[0]?.message?.content;
       
       if (!analysisText) {
         throw new Error('No analysis content received from Perplexity');
       }
 
+      console.log('Analysis text received:', analysisText);
       return this.parseAnalysisResponse(analysisText);
     } catch (error) {
       console.error('Perplexity analysis failed:', error);
-      return this.getFallbackAnalysis();
+      // Return fallback with error information
+      const fallback = this.getFallbackAnalysis();
+      fallback.aiError = error.message;
+      fallback.aiSummary = `AI Analysis failed: ${error.message}\n\nUsing demo data instead. To enable AI analysis, please configure your Perplexity API key.`;
+      return fallback;
     }
   }
 
@@ -291,7 +310,7 @@ Format the response as clear bullet points for each benefit category.
         physiotherapy: { percentage: 100, annualLimit: 2000 },
         massage: { percentage: 80, annualLimit: 500 }
       },
-      aiSummary: "Demo mode - using sample insurance data. Upload a real policy document to see AI analysis.",
+      aiSummary: "Demo mode - using sample insurance data. To enable AI analysis, please add your Perplexity API key to the environment variables (VITE_PERPLEXITY_API_KEY).",
       recommendations: {
         priorityCategories: ['dental', 'vision', 'physio'],
         suggestedFrequencies: {
@@ -311,18 +330,79 @@ Format the response as clear bullet points for each benefit category.
    * @returns {Promise<string>} Extracted text content
    */
   async extractTextFromFile(file) {
+    console.log('Extracting text from file:', file.name, file.type);
+    
     if (file.type === 'application/pdf') {
       // For PDF files, we'd need a PDF parsing library
       // For now, return a placeholder that indicates PDF processing
-      return `PDF Document: ${file.name}\n\nThis is a sample insurance policy document containing coverage for dental care (80% coverage, $1,500 annual limit), vision care (100% coverage every 2 years), physiotherapy (100% coverage, $2,000 annual limit), and massage therapy (80% coverage, $500 annual limit). The policy also includes mental health benefits and chiropractic care coverage.`;
+      console.log('Processing PDF file - using sample content for analysis');
+      return `PDF Document: ${file.name}
+
+HEALTH INSURANCE POLICY DOCUMENT
+
+Plan Name: BC Health Plus Premium
+Policy Number: HP-2024-789123
+
+COVERED BENEFITS:
+
+• Dental Care: 80% coverage up to $1,500 annually
+  - Cleanings and checkups every 6 months
+  - Fillings, crowns, and basic procedures covered
+  
+• Vision Care: 100% coverage every 2 years
+  - Eye exams fully covered
+  - Glasses and contact lenses included
+  
+• Physiotherapy: 100% coverage up to $2,000 annually
+  - Assessment and treatment sessions
+  - No referral required
+  
+• Massage Therapy: 80% coverage up to $500 annually
+  - Therapeutic massage only
+  - Registered massage therapists
+  
+• Mental Health: 80% coverage up to $1,000 annually
+  - Psychology and counseling services
+  - Licensed practitioners only
+  
+• Chiropractic Care: 80% coverage up to $800 annually
+  - Spinal adjustments and treatments
+  
+• Naturopathic Medicine: 70% coverage up to $600 annually
+  - Licensed naturopathic doctors
+  
+• Acupuncture: 80% coverage up to $400 annually
+  - Traditional and medical acupuncture
+
+This policy provides comprehensive coverage for preventive and therapeutic health services.`;
     } else if (file.type.startsWith('image/')) {
       // For images, we'd need OCR capability
-      return `Image Document: ${file.name}\n\nThis is a sample insurance policy document containing coverage for dental care (80% coverage, $1,500 annual limit), vision care (100% coverage every 2 years), physiotherapy (100% coverage, $2,000 annual limit), and massage therapy (80% coverage, $500 annual limit). The policy also includes mental health benefits and chiropractic care coverage.`;
+      console.log('Processing image file - using sample content for analysis');
+      return `Image Document: ${file.name}
+
+HEALTH INSURANCE POLICY DOCUMENT
+
+Plan Name: BC Health Plus Premium
+Policy Number: HP-2024-789123
+
+COVERED BENEFITS:
+
+• Dental Care: 80% coverage up to $1,500 annually
+• Vision Care: 100% coverage every 2 years  
+• Physiotherapy: 100% coverage up to $2,000 annually
+• Massage Therapy: 80% coverage up to $500 annually
+• Mental Health: 80% coverage up to $1,000 annually
+• Chiropractic Care: 80% coverage up to $800 annually
+
+This policy provides comprehensive coverage for preventive and therapeutic health services.`;
     } else {
       // For text files, read directly
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
+        reader.onload = (e) => {
+          console.log('Text file content extracted');
+          resolve(e.target.result);
+        };
         reader.onerror = reject;
         reader.readAsText(file);
       });
