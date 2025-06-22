@@ -29,8 +29,8 @@ export class NavigationController {
       });
     });
 
-    // Get Started button
-    const getStartedBtn = document.querySelector('[onclick="startProcess()"]');
+    // Get Started button - use the correct ID from the HTML
+    const getStartedBtn = document.getElementById('get-started-btn');
     if (getStartedBtn) {
       getStartedBtn.removeAttribute('onclick');
       getStartedBtn.addEventListener('click', () => {
