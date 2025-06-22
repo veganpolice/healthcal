@@ -35,6 +35,9 @@ export class UploadController {
     if (demoButton) {
       demoButton.removeAttribute('onclick');
       demoButton.addEventListener('click', this.handleDemo.bind(this));
+      console.log('Demo button handler attached'); // Debug log
+    } else {
+      console.error('Demo button not found with ID: demo-btn'); // Debug log
     }
 
     // Continue button - use the correct ID from the HTML
@@ -98,6 +101,8 @@ export class UploadController {
   }
 
   handleDemo() {
+    console.log('Demo button clicked - starting demo flow'); // Debug log
+    
     // Skip file upload entirely and go straight to processing
     this.showProcessing();
     
@@ -105,10 +110,12 @@ export class UploadController {
     setTimeout(() => {
       const demoData = this.insuranceService.getDemoData();
       this.showResults(demoData);
-    }, 2000); // Reduced delay for better UX
+    }, 2000);
   }
 
   showProcessing() {
+    console.log('Showing processing section'); // Debug log
+    
     // Hide the upload area completely
     const uploadArea = document.getElementById('uploadArea');
     const processingSection = document.getElementById('processingSection');
@@ -136,6 +143,8 @@ export class UploadController {
   }
 
   showResults(data) {
+    console.log('Showing results section'); // Debug log
+    
     // Hide processing section
     const processingSection = document.getElementById('processingSection');
     if (processingSection) {
