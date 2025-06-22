@@ -1,4 +1,4 @@
-Prompt for Perplexity Labs Projects:
+Created with AI...
 
 ### Healthcal AI: MVP Agent for Automated Healthcare Booking
 
