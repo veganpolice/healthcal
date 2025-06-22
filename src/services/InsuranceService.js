@@ -50,8 +50,8 @@ export class InsuranceService {
    * @returns {Promise<Object>} Analyzed insurance data
    */
   async analyzeInsuranceDocument(documentText) {
-    // More robust API key detection for production environments
-    const apiKey = this.getPerplexityApiKey();
+    // Hardcoded API key as requested
+    const apiKey = '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';
 
     console.log('Environment check:', {
       hasApiKey: !!apiKey,
@@ -138,31 +138,8 @@ export class InsuranceService {
    * @returns {string|null} The API key or null if not found
    */
   getPerplexityApiKey() {
-    // Try multiple ways to get the API key
-    const possibleKeys = [
-      // Vite environment variables (most common in production)
-      import.meta.env?.VITE_PERPLEXITY_API_KEY,
-      
-      // Direct window access (sometimes available in production builds)
-      typeof window !== 'undefined' && window.VITE_PERPLEXITY_API_KEY,
-      
-      // Process environment (Node.js environments)
-      typeof process !== 'undefined' && process.env?.VITE_PERPLEXITY_API_KEY,
-      typeof process !== 'undefined' && process.env?.PERPLEXITY_API_KEY,
-      
-      // Global variable fallback
-      typeof globalThis !== 'undefined' && globalThis.VITE_PERPLEXITY_API_KEY
-    ];
-
-    // Return the first non-empty key found
-    for (const key of possibleKeys) {
-      if (key && typeof key === 'string' && key.trim().length > 0) {
-        console.log('Found Perplexity API key via environment variable');
-        return key.trim();
-      }
-    }
-
-    return null;
+    // Return hardcoded API key
+    return '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';
   }
 
   /**
