@@ -50,17 +50,15 @@ export class InsuranceService {
    * @returns {Promise<Object>} Analyzed insurance data
    */
   async analyzeInsuranceDocument(documentText) {
-    // Check for API key with multiple possible environment variable names
-    const apiKey = import.meta.env.VITE_PERPLEXITY_API_KEY || 
-                   import.meta.env.PERPLEXITY_API_KEY ||
-                   process.env.VITE_PERPLEXITY_API_KEY ||
-                   process.env.PERPLEXITY_API_KEY;
+    // More robust API key detection for production environments
+    const apiKey = this.getPerplexityApiKey();
 
     console.log('Environment check:', {
-      hasViteKey: !!import.meta.env.VITE_PERPLEXITY_API_KEY,
-      hasProcessKey: !!process.env?.PERPLEXITY_API_KEY,
-      allEnvKeys: Object.keys(import.meta.env || {}).filter(key => key.includes('PERPLEXITY')),
-      nodeEnvKeys: typeof process !== 'undefined' ? Object.keys(process.env || {}).filter(key => key.includes('PERPLEXITY')) : []
+      hasApiKey: !!apiKey,
+      nodeEnv: typeof process !== 'undefined' ? process.env?.NODE_ENV : 'undefined',
+      isProduction: window.location.hostname !== 'localhost',
+      hostname: window.location.hostname,
+      envKeys: this.getAvailableEnvKeys()
     });
 
     if (!apiKey) {
@@ -133,6 +131,62 @@ export class InsuranceService {
       console.error('Perplexity API request failed:', error);
       return this.getFallbackAnalysis(documentText);
     }
+  }
+
+  /**
+   * Get Perplexity API key with multiple fallback methods
+   * @returns {string|null} The API key or null if not found
+   */
+  getPerplexityApiKey() {
+    // Try multiple ways to get the API key
+    const possibleKeys = [
+      // Vite environment variables (most common in production)
+      import.meta.env?.VITE_PERPLEXITY_API_KEY,
+      
+      // Direct window access (sometimes available in production builds)
+      typeof window !== 'undefined' && window.VITE_PERPLEXITY_API_KEY,
+      
+      // Process environment (Node.js environments)
+      typeof process !== 'undefined' && process.env?.VITE_PERPLEXITY_API_KEY,
+      typeof process !== 'undefined' && process.env?.PERPLEXITY_API_KEY,
+      
+      // Global variable fallback
+      typeof globalThis !== 'undefined' && globalThis.VITE_PERPLEXITY_API_KEY
+    ];
+
+    // Return the first non-empty key found
+    for (const key of possibleKeys) {
+      if (key && typeof key === 'string' && key.trim().length > 0) {
+        console.log('Found Perplexity API key via environment variable');
+        return key.trim();
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get available environment keys for debugging
+   * @returns {Array} List of available environment variable keys
+   */
+  getAvailableEnvKeys() {
+    const keys = [];
+    
+    // Check import.meta.env
+    if (import.meta.env) {
+      keys.push(...Object.keys(import.meta.env).filter(key => 
+        key.toLowerCase().includes('perplexity') || key.toLowerCase().includes('api')
+      ));
+    }
+    
+    // Check process.env if available
+    if (typeof process !== 'undefined' && process.env) {
+      keys.push(...Object.keys(process.env).filter(key => 
+        key.toLowerCase().includes('perplexity') || key.toLowerCase().includes('api')
+      ));
+    }
+    
+    return keys;
   }
 
   /**
