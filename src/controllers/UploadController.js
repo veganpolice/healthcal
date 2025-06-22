@@ -18,7 +18,7 @@ export class UploadController {
   setupUploadHandlers() {
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
-    const demoButton = document.querySelector('[onclick="tryDemo()"]');
+    const demoButton = document.getElementById('demo-btn');
 
     if (uploadArea && fileInput) {
       // Remove inline handlers
@@ -37,8 +37,8 @@ export class UploadController {
       demoButton.addEventListener('click', this.handleDemo.bind(this));
     }
 
-    // Continue button
-    const continueBtn = document.querySelector('[onclick="proceedToQuestionnaire()"]');
+    // Continue button - use the correct ID from the HTML
+    const continueBtn = document.getElementById('continue-btn');
     if (continueBtn) {
       continueBtn.removeAttribute('onclick');
       continueBtn.addEventListener('click', () => {
