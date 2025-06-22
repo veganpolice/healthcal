@@ -10,9 +10,9 @@ export class UploadController {
     this.fileUploadService = new FileUploadService();
     this.insuranceService = new InsuranceService();
     this.eventListeners = new Map();
-    this.isDemoMode = false; // Add flag to track demo mode
-    this.extractedData = null; // Store extracted data
-    this.dynamicQuestionnaire = null; // Store dynamic questionnaire
+    this.isDemoMode = false;
+    this.extractedData = null;
+    this.dynamicQuestionnaire = null;
   }
 
   async initialize() {
@@ -53,7 +53,7 @@ export class UploadController {
       // Remove inline handlers
       uploadArea.removeAttribute('onclick');
       
-      // Set up proper event handlers with demo mode check
+      // Set up proper event handlers
       uploadArea.addEventListener('click', (e) => {
         // Don't trigger file input if we're in demo mode or if the click came from demo button
         if (!this.isDemoMode && !e.target.closest('#demo-btn')) {
@@ -78,7 +78,7 @@ export class UploadController {
       console.error('Demo button not found with ID: demo-btn');
     }
 
-    // Continue button - use the correct ID from the HTML
+    // Continue button
     const continueBtn = document.getElementById('continue-btn');
     if (continueBtn) {
       continueBtn.removeAttribute('onclick');
@@ -120,7 +120,12 @@ export class UploadController {
 
   async processFile(file) {
     try {
-      console.log('Starting file processing with PDF text extraction and Perplexity AI integration');
+      console.log('🚀 Starting real file processing with AI analysis');
+      console.log('📄 File details:', {
+        name: file.name,
+        type: file.type,
+        size: Math.round(file.size / 1024) + ' KB'
+      });
       
       // Validate file
       const validation = this.fileUploadService.validateFile(file);
@@ -132,31 +137,39 @@ export class UploadController {
       // Start processing
       this.showProcessing();
 
-      // Process with insurance service (now includes PDF text extraction + Perplexity AI analysis)
-      console.log('Calling InsuranceService.processDocument with PDF text extraction + Perplexity AI');
-      const extractedData = await this.insuranceService.processDocument(file);
-      console.log('Received analysis result:', extractedData);
-      
-      this.extractedData = extractedData;
+      try {
+        // Process with insurance service - this will now wait for real text extraction and AI analysis
+        console.log('🤖 Calling InsuranceService.processDocument for real AI analysis');
+        const extractedData = await this.insuranceService.processDocument(file);
+        console.log('✅ AI analysis completed successfully:', extractedData);
+        
+        this.extractedData = extractedData;
 
-      // Generate dynamic questionnaire based on analysis
-      this.dynamicQuestionnaire = this.insuranceService.generateQuestionnaire(extractedData);
-      console.log('Generated dynamic questionnaire:', this.dynamicQuestionnaire);
+        // Generate dynamic questionnaire based on analysis
+        this.dynamicQuestionnaire = this.insuranceService.generateQuestionnaire(extractedData);
+        console.log('📋 Generated dynamic questionnaire:', this.dynamicQuestionnaire);
 
-      // Save the upload data
-      await this.saveUploadData(file.name, file.type, file.size);
-      
-      // Show results with AI analysis information
-      this.showResults(extractedData);
+        // Save the upload data
+        await this.saveUploadData(file.name, file.type, file.size);
+        
+        // Show results with AI analysis information
+        this.showResults(extractedData);
+      } catch (analysisError) {
+        console.error('❌ AI analysis failed:', analysisError);
+        this.hideProcessing();
+        
+        // Show user-friendly error message
+        alert(`Document analysis failed: ${analysisError.message}\n\nPlease try:\n- Uploading a text file (.txt) with your insurance information\n- Ensuring the document contains readable text\n- Using the demo mode to see how the system works`);
+      }
     } catch (error) {
-      console.error('File processing failed:', error);
+      console.error('❌ File processing failed:', error);
       alert(`Failed to process document: ${error.message}. Please try again.`);
       this.hideProcessing();
     }
   }
 
   handleDemo() {
-    console.log('Demo button clicked - starting demo flow with AI simulation');
+    console.log('🎭 Demo button clicked - using demo data');
     
     // Set demo mode flag
     this.isDemoMode = true;
@@ -178,7 +191,7 @@ export class UploadController {
       this.showResults(demoData);
       // Reset demo mode after showing results
       this.isDemoMode = false;
-    }, 3000); // Longer delay to simulate AI processing
+    }, 3000);
   }
 
   /**
@@ -214,7 +227,7 @@ export class UploadController {
   }
 
   showProcessing() {
-    console.log('Showing processing section with PDF text extraction + AI analysis message');
+    console.log('📊 Showing processing section for real AI analysis');
     
     // Hide the upload area completely
     const uploadArea = document.getElementById('uploadArea');
@@ -227,10 +240,10 @@ export class UploadController {
     if (processingSection) {
       processingSection.classList.remove('hidden');
       
-      // Update processing text to mention PDF extraction and AI analysis
+      // Update processing text to mention real AI analysis
       const processingText = processingSection.querySelector('p');
       if (processingText) {
-        processingText.textContent = 'Extracting text from PDF and analyzing with Perplexity AI...';
+        processingText.textContent = 'Extracting text and analyzing with Perplexity AI...';
       }
       
       // Update the heading to mention AI
@@ -255,7 +268,7 @@ export class UploadController {
   }
 
   showResults(data) {
-    console.log('Showing results section with PDF text extraction + AI analysis data');
+    console.log('📊 Showing results section with AI analysis data');
     
     // Hide processing section
     const processingSection = document.getElementById('processingSection');
@@ -275,7 +288,7 @@ export class UploadController {
   }
 
   /**
-   * Update the results display with PDF text extraction + Perplexity AI analysis information
+   * Update the results display with AI analysis information
    */
   updateResultsDisplay(data) {
     const resultsSection = document.getElementById('extractedInfo');
@@ -286,20 +299,20 @@ export class UploadController {
     if (title) {
       if (data.aiProcessed) {
         title.innerHTML = `
-          <span>PDF Text Extraction + Perplexity AI Analysis</span>
+          <span>Perplexity AI Analysis Results</span>
           <span class="confidence-badge confidence-${data.confidence}">${data.confidence} confidence</span>
         `;
       } else {
         title.innerHTML = `
-          <span>Insurance Information</span>
-          <span class="confidence-badge confidence-${data.confidence}">demo mode</span>
+          <span>Demo Insurance Information</span>
+          <span class="confidence-badge confidence-demo">demo mode</span>
         `;
       }
     }
 
     // Update info cards with health categories
     const infoCards = resultsSection.querySelector('.info-cards');
-    if (infoCards && data.healthCategories) {
+    if (infoCards && data.coverage) {
       let cardsHtml = '';
       
       // Plan details card
@@ -309,45 +322,44 @@ export class UploadController {
             <h4>Plan Details</h4>
             <p><strong>Plan Name:</strong> ${data.planName}</p>
             <p><strong>Policy Number:</strong> ${data.policyNumber}</p>
-            ${data.aiProcessed ? '<p><strong>Analysis:</strong> PDF Text Extraction + Perplexity AI</p>' : '<p><strong>Mode:</strong> Demo Data</p>'}
-            ${data.fileInfo ? `<p><strong>Text Extracted:</strong> ${data.fileInfo.extractedTextLength || 'N/A'} characters</p>` : ''}
-            ${data.aiError ? `<p style="color: var(--color-error); font-size: var(--font-size-sm);"><strong>Note:</strong> ${data.aiError}</p>` : ''}
+            ${data.aiProcessed ? '<p><strong>Analysis:</strong> Perplexity AI</p>' : '<p><strong>Mode:</strong> Demo Data</p>'}
           </div>
         </div>
       `;
 
-      // Health category cards
-      data.healthCategories.forEach(category => {
-        if (category.covered) {
-          cardsHtml += `
-            <div class="card">
-              <div class="card__body">
-                <h4>${category.displayName}</h4>
-                <p><strong>Coverage:</strong> ${category.coveragePercentage}%</p>
-                ${category.annualLimit ? `<p><strong>Annual Limit:</strong> $${category.annualLimit.toLocaleString()}</p>` : ''}
-                ${category.frequency ? `<p><strong>Frequency:</strong> ${category.frequency}</p>` : ''}
-              </div>
+      // Coverage cards
+      Object.keys(data.coverage).forEach(coverageType => {
+        const coverage = data.coverage[coverageType];
+        const displayName = this.getDisplayName(coverageType);
+        
+        cardsHtml += `
+          <div class="card">
+            <div class="card__body">
+              <h4>${displayName}</h4>
+              <p><strong>Coverage:</strong> ${coverage.percentage}%</p>
+              ${coverage.annualLimit ? `<p><strong>Annual Limit:</strong> $${coverage.annualLimit.toLocaleString()}</p>` : ''}
+              ${coverage.frequency ? `<p><strong>Frequency:</strong> ${coverage.frequency}</p>` : ''}
             </div>
-          `;
-        }
+          </div>
+        `;
       });
 
       infoCards.innerHTML = cardsHtml;
     }
 
-    // Add Perplexity AI analysis summary if available
+    // Add AI analysis summary if available
     if (data.aiSummary) {
       const aiSummary = document.createElement('div');
       aiSummary.className = 'ai-summary';
       aiSummary.innerHTML = `
         <div class="card">
           <div class="card__body">
-            <h4>🤖 ${data.aiProcessed ? 'PDF Text Extraction + Perplexity AI Analysis' : 'Demo Mode Information'}</h4>
+            <h4>🤖 ${data.aiProcessed ? 'Perplexity AI Analysis' : 'Demo Mode Information'}</h4>
             <div style="white-space: pre-line; font-size: var(--font-size-sm); line-height: 1.6;">
               ${data.aiSummary}
             </div>
             <div class="ai-powered-by">
-              ${data.aiProcessed ? 'Powered by PDF Text Extraction + Perplexity AI' : 'Demo Mode - Configure VITE_PERPLEXITY_API_KEY for AI analysis'}
+              ${data.aiProcessed ? 'Powered by Perplexity AI' : 'Demo Mode - Upload a real document for AI analysis'}
             </div>
           </div>
         </div>
@@ -357,27 +369,17 @@ export class UploadController {
         infoCards.appendChild(aiSummary);
       }
     }
+  }
 
-    // Add AI recommendations if available
-    if (data.recommendations) {
-      const recommendations = document.createElement('div');
-      recommendations.className = 'ai-summary';
-      recommendations.innerHTML = `
-        <div class="card">
-          <div class="card__body">
-            <h4>📋 ${data.aiProcessed ? 'AI Recommendations' : 'Demo Recommendations'}</h4>
-            ${data.recommendations.priorityCategories ? 
-              `<p><strong>Priority Categories:</strong> ${data.recommendations.priorityCategories.join(', ')}</p>` : ''}
-            <p><strong>Categories Found:</strong> ${data.healthCategories.length} health coverage areas identified</p>
-            <p class="text-sm text-secondary">Your questionnaire will be customized based on these findings.</p>
-          </div>
-        </div>
-      `;
-      
-      if (infoCards) {
-        infoCards.appendChild(recommendations);
-      }
-    }
+  getDisplayName(coverageType) {
+    const displayNames = {
+      dental: 'Dental Care',
+      physiotherapy: 'Physiotherapy',
+      massage: 'Massage Therapy',
+      vision: 'Vision Care',
+      medical: 'Medical Care'
+    };
+    return displayNames[coverageType] || coverageType;
   }
 
   // Event system
