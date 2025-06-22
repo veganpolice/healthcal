@@ -9,6 +9,7 @@ export class UploadController {
     this.fileUploadService = new FileUploadService();
     this.insuranceService = new InsuranceService();
     this.eventListeners = new Map();
+    this.isDemoMode = false; // Add flag to track demo mode
   }
 
   async initialize() {
@@ -24,8 +25,13 @@ export class UploadController {
       // Remove inline handlers
       uploadArea.removeAttribute('onclick');
       
-      // Set up proper event handlers
-      uploadArea.addEventListener('click', () => fileInput.click());
+      // Set up proper event handlers with demo mode check
+      uploadArea.addEventListener('click', (e) => {
+        // Don't trigger file input if we're in demo mode or if the click came from demo button
+        if (!this.isDemoMode && !e.target.closest('#demo-btn')) {
+          fileInput.click();
+        }
+      });
       uploadArea.addEventListener('dragover', this.handleDragOver.bind(this));
       uploadArea.addEventListener('dragleave', this.handleDragLeave.bind(this));
       uploadArea.addEventListener('drop', this.handleFileDrop.bind(this));
@@ -34,10 +40,14 @@ export class UploadController {
 
     if (demoButton) {
       demoButton.removeAttribute('onclick');
-      demoButton.addEventListener('click', this.handleDemo.bind(this));
-      console.log('Demo button handler attached'); // Debug log
+      demoButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleDemo();
+      });
+      console.log('Demo button handler attached');
     } else {
-      console.error('Demo button not found with ID: demo-btn'); // Debug log
+      console.error('Demo button not found with ID: demo-btn');
     }
 
     // Continue button - use the correct ID from the HTML
@@ -101,7 +111,10 @@ export class UploadController {
   }
 
   handleDemo() {
-    console.log('Demo button clicked - starting demo flow'); // Debug log
+    console.log('Demo button clicked - starting demo flow');
+    
+    // Set demo mode flag
+    this.isDemoMode = true;
     
     // Skip file upload entirely and go straight to processing
     this.showProcessing();
@@ -110,11 +123,13 @@ export class UploadController {
     setTimeout(() => {
       const demoData = this.insuranceService.getDemoData();
       this.showResults(demoData);
+      // Reset demo mode after showing results
+      this.isDemoMode = false;
     }, 2000);
   }
 
   showProcessing() {
-    console.log('Showing processing section'); // Debug log
+    console.log('Showing processing section');
     
     // Hide the upload area completely
     const uploadArea = document.getElementById('uploadArea');
@@ -143,7 +158,7 @@ export class UploadController {
   }
 
   showResults(data) {
-    console.log('Showing results section'); // Debug log
+    console.log('Showing results section');
     
     // Hide processing section
     const processingSection = document.getElementById('processingSection');
