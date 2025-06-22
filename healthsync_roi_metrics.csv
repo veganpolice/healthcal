@@ -1,0 +1,11 @@
+Metric,Baseline (Without AI),With HealthSync AI,Improvement
+Time Saved per User (hours/year),0,8.5,8.5
+Missed Appointments Reduction (%),0,25.0,25.0
+Administrative Cost Savings ($/user/year),0,150.0,150.0
+Patient Satisfaction Improvement (%),70,90.0,20.0
+Provider Efficiency Gain (%),60,85.0,25.0
+Healthcare Utilization Optimization (%),65,85.0,20.0
+User Adoption Rate (%),0,75.0,75.0
+System Accuracy Rate (%),75,95.0,20.0
+Privacy Compliance Score (%),80,98.0,18.0
+Provider Integration Success (%),40,80.0,40.0

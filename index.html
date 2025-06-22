@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HealthSync AI - Smart Healthcare Scheduling</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="flex items-center justify-between">
+                <div class="logo">
+                    <h2>HealthSync AI</h2>
+                </div>
+                <nav class="nav">
+                    <button class="nav-btn" onclick="showPage('welcome')">Home</button>
+                    <button class="nav-btn" onclick="showPage('upload')">Upload</button>
+                    <button class="nav-btn" onclick="showPage('questionnaire')">Preferences</button>
+                    <button class="nav-btn" onclick="showPage('calendar')">Calendar</button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Welcome Page -->
+    <section id="welcome-page" class="page active">
+        <div class="container">
+            <div class="hero">
+                <h1>Smart Healthcare Appointment Scheduling</h1>
+                <p class="hero-subtitle">Upload your insurance policy, share your health preferences, and let AI create your personalized annual healthcare schedule.</p>
+                <div class="hero-features">
+                    <div class="feature-card">
+                        <div class="feature-icon">📄</div>
+                        <h3>Upload Insurance</h3>
+                        <p>AI extracts your coverage details automatically</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h3>Smart Preferences</h3>
+                        <p>Adaptive questionnaire learns your healthcare needs</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📅</div>
+                        <h3>Annual Schedule</h3>
+                        <p>AI creates optimal appointment schedule for the year</p>
+                    </div>
+                </div>
+                <button class="btn btn--primary btn--lg" onclick="startProcess()">Get Started</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Insurance Upload Page -->
+    <section id="upload-page" class="page">
+        <div class="container">
+            <div class="upload-section">
+                <h2>Upload Your Insurance Policy</h2>
+                <p class="text-secondary">Upload your insurance document and our AI will extract your coverage details</p>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <div class="upload-icon">📁</div>
+                        <h3>Drag & Drop Your Insurance Document</h3>
+                        <p>or click to select file</p>
+                        <p class="upload-info">Supports PDF, JPG, PNG (max 10MB)</p>
+                        <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" hidden>
+                        <div class="demo-section">
+                            <p class="demo-text">Or try a demo:</p>
+                            <button class="btn btn--outline" onclick="tryDemo()">Try Demo with Sample Policy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="processing-section hidden" id="processingSection">
+                    <div class="processing-animation">
+                        <div class="spinner"></div>
+                        <h3>AI Processing Your Document...</h3>
+                        <p>Extracting coverage information and provider networks</p>
+                    </div>
+                </div>
+
+                <div class="extracted-info hidden" id="extractedInfo">
+                    <h3>Extracted Insurance Information</h3>
+                    <div class="info-cards">
+                        <div class="card">
+                            <div class="card__body">
+                                <h4>Plan Details</h4>
+                                <p><strong>Plan Name:</strong> BC Health Plus Premium</p>
+                                <p><strong>Policy Number:</strong> HP-2024-789123</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card__body">
+                                <h4>Dental Coverage</h4>
+                                <p><strong>Coverage:</strong> 80%</p>
+                                <p><strong>Annual Limit:</strong> $1,500</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card__body">
+                                <h4>Physiotherapy</h4>
+                                <p><strong>Coverage:</strong> 100%</p>
+                                <p><strong>Annual Limit:</strong> $2,000</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card__body">
+                                <h4>Massage Therapy</h4>
+                                <p><strong>Coverage:</strong> 80%</p>
+                                <p><strong>Annual Limit:</strong> $500</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn--primary" onclick="proceedToQuestionnaire()">Continue to Health Preferences</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Health Preferences Questionnaire -->
+    <section id="questionnaire-page" class="page">
+        <div class="container">
+            <div class="questionnaire-section">
+                <div class="progress-header">
+                    <h2>Health Preferences Questionnaire</h2>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p class="progress-text"><span id="currentQuestion">1</span> of <span id="totalQuestions">8</span></p>
+                </div>
+
+                <div class="question-container" id="questionContainer">
+                    <!-- Questions will be dynamically loaded here -->
+                </div>
+
+                <div class="question-navigation">
+                    <button class="btn btn--outline" id="prevBtn" onclick="previousQuestion()" disabled>Previous</button>
+                    <button class="btn btn--primary" id="nextBtn" onclick="nextQuestion()">Next</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Annual Calendar Page -->
+    <section id="calendar-page" class="page">
+        <div class="container">
+            <div class="calendar-section">
+                <div class="calendar-header">
+                    <h2>Your Personalized Healthcare Schedule for 2025</h2>
+                    <p>AI has created an optimal appointment schedule based on your preferences and insurance coverage</p>
+                    <div class="calendar-controls">
+                        <button class="btn btn--outline" onclick="generateNewSchedule()">Generate New Schedule</button>
+                        <div class="calendar-legend">
+                            <div class="legend-item">
+                                <span class="legend-color dental"></span>
+                                <span>Dental</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color physio"></span>
+                                <span>Physiotherapy</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color massage"></span>
+                                <span>Massage</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color vision"></span>
+                                <span>Vision</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color medical"></span>
+                                <span>Medical</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="calendar-grid" id="calendarGrid">
+                    <!-- Calendar will be dynamically generated -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Appointment Details Modal -->
+    <div id="appointmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Appointment Details</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be dynamically loaded -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn--outline" onclick="requestChanges()">Request Changes</button>
+                <button class="btn btn--secondary" onclick="sendToProvider()">Send to Provider</button>
+                <button class="btn btn--primary" onclick="acceptAppointment()">Accept Appointment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Request Modal -->
+    <div id="changeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Request Changes</h3>
+                <button class="modal-close" onclick="closeChangeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Preferred Date</label>
+                    <input type="date" class="form-control" id="preferredDate">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Preferred Time</label>
+                    <select class="form-control" id="preferredTime">
+                        <option>Morning (8AM - 12PM)</option>
+                        <option>Afternoon (12PM - 5PM)</option>
+                        <option>Evening (5PM - 8PM)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Alternative Provider</label>
+                    <select class="form-control" id="alternativeProvider">
+                        <option>Keep current provider</option>
+                        <option>Any available provider</option>
+                        <option>Female provider preferred</option>
+                        <option>Male provider preferred</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Additional Notes</label>
+                    <textarea class="form-control" id="changeNotes" rows="3" placeholder="Any specific requirements or preferences..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn--outline" onclick="closeChangeModal()">Cancel</button>
+                <button class="btn btn--primary" onclick="submitChanges()">Submit Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Request Sent Successfully!</h3>
+                <button class="modal-close" onclick="closeSuccessModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="success-content">
+                    <div class="success-icon">✅</div>
+                    <p>Your appointment request has been sent to the provider.</p>
+                    <p><strong>Tracking Number:</strong> <span id="trackingNumber"></span></p>
+                    <div class="status-timeline">
+                        <div class="status-item active">
+                            <div class="status-dot"></div>
+                            <span>Request Sent</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-dot"></div>
+                            <span>Provider Reviewing</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-dot"></div>
+                            <span>Confirmed</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn--primary" onclick="closeSuccessModal()">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>HealthSync AI</h4>
+                    <p>Simplifying healthcare scheduling with AI</p>
+                </div>
+                <div class="footer-section">
+                    <h5>Privacy & Security</h5>
+                    <p>PIPEDA compliant • End-to-end encryption</p>
+                </div>
+                <div class="footer-section">
+                    <h5>Contact</h5>
+                    <p>support@healthsync.ai</p>
+                    <p>1-800-HEALTH-AI</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
