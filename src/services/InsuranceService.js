@@ -68,31 +68,34 @@ export class InsuranceService {
   }
 
   /**
-   * Process insurance document using Perplexity AI
+   * Process insurance document using Perplexity AI with text extraction
    * @param {File} file - The insurance document
    * @returns {Promise<Object>} Extracted insurance data with AI analysis
    */
   async processDocument(file) {
-    console.log('Processing insurance document with Perplexity AI analysis:', file.name);
+    console.log('Processing insurance document with PDF text extraction and Perplexity AI analysis:', file.name);
     
     try {
-      // Extract text from the file
+      // Step 1: Extract text from the file (PDF, image, or text)
+      console.log('Step 1: Extracting text from document...');
       const documentText = await perplexityService.extractTextFromFile(file);
+      console.log('Text extraction completed. Length:', documentText.length);
+      console.log('First 500 characters:', documentText.substring(0, 500));
       
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Analyze with Perplexity AI
+      // Step 2: Analyze with Perplexity AI using the extracted text
+      console.log('Step 2: Analyzing extracted text with Perplexity AI...');
       const analysisResult = await perplexityService.analyzeInsuranceDocument(documentText);
-      
       console.log('Perplexity AI Analysis completed:', analysisResult);
       
-      // Enhance the result with additional processing
-      return this.enhanceAnalysisResult(analysisResult, file);
+      // Step 3: Enhance the result with additional processing
+      return this.enhanceAnalysisResult(analysisResult, file, documentText);
     } catch (error) {
       console.error('Document processing failed:', error);
-      // Fallback to demo data
-      return this.getDemoData();
+      // Fallback to demo data with error information
+      const fallback = this.getDemoData();
+      fallback.aiError = error.message;
+      fallback.aiSummary = `Document processing failed: ${error.message}\n\nUsing demo data instead. Please ensure your file is a valid insurance document and try again.`;
+      return fallback;
     }
   }
 
@@ -100,26 +103,31 @@ export class InsuranceService {
    * Enhance analysis result with additional processing
    * @param {Object} analysisResult - Result from Perplexity AI
    * @param {File} file - Original file
+   * @param {string} extractedText - The extracted text
    * @returns {Object} Enhanced analysis data
    */
-  enhanceAnalysisResult(analysisResult, file) {
+  enhanceAnalysisResult(analysisResult, file, extractedText) {
     const enhanced = {
       ...analysisResult,
       fileInfo: {
         name: file.name,
         type: file.type,
         size: file.size,
-        processedAt: new Date().toISOString()
+        processedAt: new Date().toISOString(),
+        extractedTextLength: extractedText.length
       },
+      extractedText: extractedText.substring(0, 1000) + (extractedText.length > 1000 ? '...' : ''), // Store first 1000 chars for reference
       aiProcessed: true,
       confidence: analysisResult.confidence || this.calculateConfidence(analysisResult)
     };
 
     // Ensure we have at least some basic categories
     if (!enhanced.healthCategories || enhanced.healthCategories.length === 0) {
+      console.warn('No health categories found in AI analysis, using demo data categories');
       enhanced.healthCategories = this.demoData.healthCategories;
       enhanced.coverage = this.demoData.coverage;
       enhanced.confidence = 'low';
+      enhanced.aiSummary = (enhanced.aiSummary || '') + '\n\nNote: No specific health categories were identified in the document. Using default categories for demonstration.';
     }
 
     return enhanced;
@@ -162,7 +170,7 @@ export class InsuranceService {
       ...this.demoData,
       aiProcessed: false,
       confidence: 'demo',
-      aiSummary: "Demo mode - using sample insurance data. Upload a real policy document to see Perplexity AI analysis."
+      aiSummary: "Demo mode - using sample insurance data. Upload a real policy document to see Perplexity AI analysis with PDF text extraction."
     };
   }
 

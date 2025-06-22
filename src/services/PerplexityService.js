@@ -1,3 +1,5 @@
+import { pdfTextExtractor } from './PDFTextExtractor.js';
+
 /**
  * Service for integrating with Perplexity AI to analyze insurance documents
  */
@@ -331,7 +333,7 @@ Format the response as clear bullet points for each benefit category.
   }
 
   /**
-   * Extract text from file for analysis - IMPROVED VERSION
+   * Extract text from file for analysis - IMPROVED VERSION WITH PDF SUPPORT
    * @param {File} file - The uploaded file
    * @returns {Promise<string>} Extracted text content
    */
@@ -339,33 +341,36 @@ Format the response as clear bullet points for each benefit category.
     console.log('Extracting text from file:', file.name, file.type);
     
     if (file.type === 'application/pdf') {
-      // For PDF files, we need a PDF parsing library
-      // Since we can't install pdf-parse in this environment, we'll use a more realistic approach
-      console.log('Processing PDF file - attempting text extraction');
-      
+      console.log('Processing PDF file with PDF text extractor');
       try {
-        // Try to read the file as text (works for some PDFs)
-        const text = await this.readFileAsText(file);
-        if (text && text.length > 50) {
-          console.log('Successfully extracted text from PDF');
-          return text;
-        }
+        const text = await pdfTextExtractor.extractText(file);
+        console.log('PDF text extraction successful, length:', text.length);
+        return text;
       } catch (error) {
-        console.log('Could not extract text from PDF, using OCR simulation');
+        console.error('PDF text extraction failed:', error);
+        throw new Error(`Failed to extract text from PDF: ${error.message}`);
       }
-      
-      // Fallback: Use the file name and size to create a more realistic prompt
-      return this.createRealisticPDFContent(file);
-      
     } else if (file.type.startsWith('image/')) {
-      // For images, we'd need OCR capability
-      console.log('Processing image file - simulating OCR');
-      return this.createRealisticImageContent(file);
-      
+      console.log('Processing image file with OCR simulation');
+      try {
+        const text = await pdfTextExtractor.extractTextFromImage(file);
+        console.log('Image OCR simulation completed');
+        return text;
+      } catch (error) {
+        console.error('Image text extraction failed:', error);
+        throw new Error(`Failed to extract text from image: ${error.message}`);
+      }
     } else {
       // For text files, read directly
       console.log('Reading text file directly');
-      return this.readFileAsText(file);
+      try {
+        const text = await this.readFileAsText(file);
+        console.log('Text file read successfully, length:', text.length);
+        return text;
+      } catch (error) {
+        console.error('Text file reading failed:', error);
+        throw new Error(`Failed to read text file: ${error.message}`);
+      }
     }
   }
 
@@ -383,133 +388,6 @@ Format the response as clear bullet points for each benefit category.
       reader.onerror = reject;
       reader.readAsText(file);
     });
-  }
-
-  /**
-   * Create realistic PDF content for analysis
-   * @param {File} file - The PDF file
-   * @returns {string} Simulated PDF content
-   */
-  createRealisticPDFContent(file) {
-    // Create content that varies based on file characteristics
-    const fileSize = file.size;
-    const fileName = file.name.toLowerCase();
-    
-    let content = `INSURANCE POLICY DOCUMENT
-File: ${file.name}
-Document Type: Health Insurance Policy
-
-`;
-
-    // Vary content based on file name hints
-    if (fileName.includes('blue') || fileName.includes('cross')) {
-      content += `BLUE CROSS HEALTH INSURANCE
-Policy Holder Benefits Summary
-
-COVERED SERVICES:
-• Dental Services: 80% coverage, $1,800 annual maximum
-• Vision Care: 100% coverage for exams, $300 allowance for frames
-• Physiotherapy: 100% coverage, $2,500 annual maximum  
-• Massage Therapy: 80% coverage, $600 annual maximum
-• Mental Health: 80% coverage, $1,200 annual maximum
-• Chiropractic: 80% coverage, $800 annual maximum
-`;
-    } else if (fileName.includes('sun') || fileName.includes('life')) {
-      content += `SUN LIFE HEALTH BENEFITS
-Extended Health Care Coverage
-
-PARAMEDICAL SERVICES:
-• Physiotherapy: 100% coverage up to $2,000 annually
-• Massage Therapy: 80% coverage up to $500 annually  
-• Chiropractic Care: 80% coverage up to $750 annually
-• Acupuncture: 80% coverage up to $400 annually
-• Naturopathy: 70% coverage up to $500 annually
-
-DENTAL COVERAGE:
-• Basic Services: 80% coverage
-• Major Services: 50% coverage
-• Annual Maximum: $1,500
-
-VISION CARE:
-• Eye Exams: 100% coverage every 24 months
-• Glasses/Contacts: $300 every 24 months
-`;
-    } else {
-      // Generic comprehensive policy
-      content += `COMPREHENSIVE HEALTH INSURANCE POLICY
-
-EXTENDED HEALTH BENEFITS:
-• Prescription Drugs: 80% coverage after $25 deductible
-• Dental Care: 80% basic, 50% major, $1,500 annual max
-• Vision Care: 100% exams, $400 frames/contacts every 2 years
-• Physiotherapy: 100% coverage, $2,000 annual maximum
-• Massage Therapy: 80% coverage, $500 annual maximum
-• Chiropractic: 80% coverage, $800 annual maximum
-• Mental Health: 80% coverage, $1,000 annual maximum
-• Naturopathy: 70% coverage, $600 annual maximum
-• Acupuncture: 80% coverage, $400 annual maximum
-• Podiatry: 80% coverage, $300 annual maximum
-
-WELLNESS BENEFITS:
-• Annual Physical Exam: 100% covered
-• Preventive Screenings: 100% covered
-• Vaccinations: 100% covered
-`;
-    }
-
-    // Add more detail for larger files
-    if (fileSize > 100000) { // > 100KB
-      content += `
-ADDITIONAL COVERAGE DETAILS:
-• Emergency Travel: $5,000,000 coverage
-• Ambulance Services: 100% coverage
-• Medical Equipment: 80% coverage up to $2,000
-• Home Nursing: 100% coverage up to $10,000
-• Hospital Accommodation: Private room coverage
-
-CLAIM PROCEDURES:
-• Submit claims within 12 months of service
-• Direct billing available for most providers
-• Online claim submission through member portal
-• Coordination of benefits with other plans
-`;
-    }
-
-    return content;
-  }
-
-  /**
-   * Create realistic image content for analysis
-   * @param {File} file - The image file
-   * @returns {string} Simulated OCR content
-   */
-  createRealisticImageContent(file) {
-    return `HEALTH INSURANCE POLICY DOCUMENT (Scanned Image)
-File: ${file.name}
-Extracted via OCR Processing
-
-BENEFITS SUMMARY:
-
-DENTAL COVERAGE:
-• Preventive Care: 100% coverage
-• Basic Restorative: 80% coverage  
-• Major Restorative: 50% coverage
-• Annual Maximum: $1,500
-
-EXTENDED HEALTH:
-• Prescription Drugs: 80% after deductible
-• Physiotherapy: 100% up to $2,000/year
-• Massage Therapy: 80% up to $500/year
-• Vision Care: $300 every 24 months
-• Mental Health: 80% up to $1,000/year
-
-PARAMEDICAL SERVICES:
-• Chiropractic: 80% up to $800/year
-• Naturopathy: 70% up to $500/year
-• Acupuncture: 80% up to $400/year
-
-Note: This document was processed using OCR technology. 
-Some details may require verification with original policy.`;
   }
 
   /**

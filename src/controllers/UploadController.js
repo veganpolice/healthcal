@@ -120,7 +120,7 @@ export class UploadController {
 
   async processFile(file) {
     try {
-      console.log('Starting file processing with Perplexity AI integration');
+      console.log('Starting file processing with PDF text extraction and Perplexity AI integration');
       
       // Validate file
       const validation = this.fileUploadService.validateFile(file);
@@ -132,8 +132,8 @@ export class UploadController {
       // Start processing
       this.showProcessing();
 
-      // Process with insurance service (now includes Perplexity AI analysis)
-      console.log('Calling InsuranceService.processDocument with Perplexity AI');
+      // Process with insurance service (now includes PDF text extraction + Perplexity AI analysis)
+      console.log('Calling InsuranceService.processDocument with PDF text extraction + Perplexity AI');
       const extractedData = await this.insuranceService.processDocument(file);
       console.log('Received analysis result:', extractedData);
       
@@ -214,7 +214,7 @@ export class UploadController {
   }
 
   showProcessing() {
-    console.log('Showing processing section with AI analysis message');
+    console.log('Showing processing section with PDF text extraction + AI analysis message');
     
     // Hide the upload area completely
     const uploadArea = document.getElementById('uploadArea');
@@ -227,10 +227,10 @@ export class UploadController {
     if (processingSection) {
       processingSection.classList.remove('hidden');
       
-      // Update processing text to mention AI analysis
+      // Update processing text to mention PDF extraction and AI analysis
       const processingText = processingSection.querySelector('p');
       if (processingText) {
-        processingText.textContent = 'Perplexity AI analyzing your document and extracting coverage details...';
+        processingText.textContent = 'Extracting text from PDF and analyzing with Perplexity AI...';
       }
       
       // Update the heading to mention AI
@@ -255,7 +255,7 @@ export class UploadController {
   }
 
   showResults(data) {
-    console.log('Showing results section with AI analysis data');
+    console.log('Showing results section with PDF text extraction + AI analysis data');
     
     // Hide processing section
     const processingSection = document.getElementById('processingSection');
@@ -275,7 +275,7 @@ export class UploadController {
   }
 
   /**
-   * Update the results display with Perplexity AI analysis information
+   * Update the results display with PDF text extraction + Perplexity AI analysis information
    */
   updateResultsDisplay(data) {
     const resultsSection = document.getElementById('extractedInfo');
@@ -286,7 +286,7 @@ export class UploadController {
     if (title) {
       if (data.aiProcessed) {
         title.innerHTML = `
-          <span>Perplexity AI Analysis Results</span>
+          <span>PDF Text Extraction + Perplexity AI Analysis</span>
           <span class="confidence-badge confidence-${data.confidence}">${data.confidence} confidence</span>
         `;
       } else {
@@ -309,7 +309,8 @@ export class UploadController {
             <h4>Plan Details</h4>
             <p><strong>Plan Name:</strong> ${data.planName}</p>
             <p><strong>Policy Number:</strong> ${data.policyNumber}</p>
-            ${data.aiProcessed ? '<p><strong>Analysis:</strong> Perplexity AI Processed</p>' : '<p><strong>Mode:</strong> Demo Data</p>'}
+            ${data.aiProcessed ? '<p><strong>Analysis:</strong> PDF Text Extraction + Perplexity AI</p>' : '<p><strong>Mode:</strong> Demo Data</p>'}
+            ${data.fileInfo ? `<p><strong>Text Extracted:</strong> ${data.fileInfo.extractedTextLength || 'N/A'} characters</p>` : ''}
             ${data.aiError ? `<p style="color: var(--color-error); font-size: var(--font-size-sm);"><strong>Note:</strong> ${data.aiError}</p>` : ''}
           </div>
         </div>
@@ -341,12 +342,12 @@ export class UploadController {
       aiSummary.innerHTML = `
         <div class="card">
           <div class="card__body">
-            <h4>🤖 ${data.aiProcessed ? 'Perplexity AI Analysis' : 'Demo Mode Information'}</h4>
+            <h4>🤖 ${data.aiProcessed ? 'PDF Text Extraction + Perplexity AI Analysis' : 'Demo Mode Information'}</h4>
             <div style="white-space: pre-line; font-size: var(--font-size-sm); line-height: 1.6;">
               ${data.aiSummary}
             </div>
             <div class="ai-powered-by">
-              ${data.aiProcessed ? 'Powered by Perplexity AI' : 'Demo Mode - Configure VITE_PERPLEXITY_API_KEY for AI analysis'}
+              ${data.aiProcessed ? 'Powered by PDF Text Extraction + Perplexity AI' : 'Demo Mode - Configure VITE_PERPLEXITY_API_KEY for AI analysis'}
             </div>
           </div>
         </div>
