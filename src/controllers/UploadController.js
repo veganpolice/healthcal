@@ -98,26 +98,51 @@ export class UploadController {
   }
 
   handleDemo() {
+    // Skip file upload entirely and go straight to processing
     this.showProcessing();
+    
     // Simulate processing delay
     setTimeout(() => {
       const demoData = this.insuranceService.getDemoData();
       this.showResults(demoData);
-    }, 3000);
+    }, 2000); // Reduced delay for better UX
   }
 
   showProcessing() {
-    document.getElementById('uploadArea')?.classList.add('hidden');
-    document.getElementById('processingSection')?.classList.remove('hidden');
+    // Hide the upload area completely
+    const uploadArea = document.getElementById('uploadArea');
+    const processingSection = document.getElementById('processingSection');
+    
+    if (uploadArea) {
+      uploadArea.classList.add('hidden');
+    }
+    
+    if (processingSection) {
+      processingSection.classList.remove('hidden');
+    }
   }
 
   hideProcessing() {
-    document.getElementById('processingSection')?.classList.add('hidden');
-    document.getElementById('uploadArea')?.classList.remove('hidden');
+    const processingSection = document.getElementById('processingSection');
+    const uploadArea = document.getElementById('uploadArea');
+    
+    if (processingSection) {
+      processingSection.classList.add('hidden');
+    }
+    
+    if (uploadArea) {
+      uploadArea.classList.remove('hidden');
+    }
   }
 
   showResults(data) {
-    document.getElementById('processingSection')?.classList.add('hidden');
+    // Hide processing section
+    const processingSection = document.getElementById('processingSection');
+    if (processingSection) {
+      processingSection.classList.add('hidden');
+    }
+    
+    // Show results section
     const resultsSection = document.getElementById('extractedInfo');
     if (resultsSection) {
       resultsSection.classList.remove('hidden');
