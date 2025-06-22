@@ -389,7 +389,7 @@ export class QuestionnaireController {
     e.preventDefault();
     
     try {
-      // Save preferences
+      // Save or update preferences
       const result = await this.savePreferences();
       
       if (result.success) {
@@ -410,8 +410,10 @@ export class QuestionnaireController {
           submitBtn.className = submitBtn.className.replace('btn--primary', 'btn--secondary');
         }
         
-        // Emit completion event to trigger calendar navigation
-        this.emit('questionnaireComplete', this.userAnswers);
+        // Navigate to calendar after successful save/update
+        setTimeout(() => {
+          this.emit('questionnaireComplete', this.userAnswers);
+        }, 1000);
       } else {
         this.showErrorMessage('Failed to save preferences. Please try again.');
       }
@@ -458,10 +460,17 @@ export class QuestionnaireController {
         formMode: true // Flag to indicate this was saved via form mode
       };
 
-      return await userPreferencesService.savePreferences(
-        userPreferencesService.steps.QUESTIONNAIRE,
-        preferencesData
-      );
+      if (this.hasExistingPreferences) {
+        return await userPreferencesService.updatePreferences(
+          userPreferencesService.steps.QUESTIONNAIRE,
+          preferencesData
+        );
+      } else {
+        return await userPreferencesService.savePreferences(
+          userPreferencesService.steps.QUESTIONNAIRE,
+          preferencesData
+        );
+      }
     } catch (error) {
       console.error('Failed to save preferences:', error);
       return { success: false, error: error.message };

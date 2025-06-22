@@ -34,38 +34,17 @@ export class UserPreferencesService {
     }
 
     try {
-      // Check if preferences already exist for this step
-      const existing = await this.getPreferences(step);
+      const response = await this.callEdgeFunction('POST', { step, preferences });
       
-      const preferenceData = {
-        user_id: user.id,
-        step: step,
-        preferences: preferences,
-        completed_at: new Date().toISOString()
-      };
-
-      let result;
-      if (existing && existing.id) {
-        // Update existing preferences
-        result = await DatabaseService.update('user_preferences', existing.id, {
-          preferences: preferences,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      } else {
-        // Insert new preferences
-        result = await DatabaseService.insert('user_preferences', preferenceData);
-      }
-
-      if (result.error) {
-        console.error('Failed to save preferences:', result.error);
+      if (response.error) {
+        console.error('Failed to save preferences:', response.error);
         // Fallback to local storage
         this.saveToLocalStorage(step, preferences);
-        return { success: false, error: result.error, fallback: true };
+        return { success: false, error: response.error, fallback: true };
       }
 
       console.log(`Preferences saved for step: ${step}`);
-      return { success: true, data: result.data };
+      return { success: true, data: response.data };
     } catch (error) {
       console.error('Error saving preferences:', error);
       // Fallback to local storage
@@ -92,22 +71,56 @@ export class UserPreferencesService {
     }
 
     try {
-      const { data, error } = await DatabaseService.query('user_preferences', {
-        select: '*',
-        filter: ['user_id', 'eq', user.id],
-        order: { column: 'created_at', ascending: false }
-      });
-
-      if (error) {
-        console.error('Failed to fetch preferences:', error);
+      const response = await this.callEdgeFunction('GET', null, `?step=${step}`);
+      
+      if (response.error) {
+        console.error('Failed to fetch preferences:', response.error);
         return this.getFromLocalStorage(step);
       }
 
-      const stepPreferences = data?.find(pref => pref.step === step);
-      return stepPreferences || this.getFromLocalStorage(step);
+      return response.data || this.getFromLocalStorage(step);
     } catch (error) {
       console.error('Error fetching preferences:', error);
       return this.getFromLocalStorage(step);
+    }
+  }
+
+  /**
+   * Update user preferences for a specific step
+   * @param {string} step - The step identifier
+   * @param {Object} preferences - The preferences data
+   * @returns {Promise<Object>} Result of the update operation
+   */
+  async updatePreferences(step, preferences) {
+    const user = authService.getCurrentUser();
+    if (!user) {
+      console.warn('No authenticated user found');
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    if (!DatabaseService.isConnected()) {
+      console.warn('Database not connected. Preferences saved locally only.');
+      this.saveToLocalStorage(step, preferences);
+      return { success: true, local: true };
+    }
+
+    try {
+      const response = await this.callEdgeFunction('PUT', { step, preferences });
+      
+      if (response.error) {
+        console.error('Failed to update preferences:', response.error);
+        // Fallback to local storage
+        this.saveToLocalStorage(step, preferences);
+        return { success: false, error: response.error, fallback: true };
+      }
+
+      console.log(`Preferences updated for step: ${step}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Error updating preferences:', error);
+      // Fallback to local storage
+      this.saveToLocalStorage(step, preferences);
+      return { success: false, error: error.message, fallback: true };
     }
   }
 
@@ -128,18 +141,14 @@ export class UserPreferencesService {
     }
 
     try {
-      const { data, error } = await DatabaseService.query('user_preferences', {
-        select: '*',
-        filter: ['user_id', 'eq', user.id],
-        order: { column: 'created_at', ascending: false }
-      });
-
-      if (error) {
-        console.error('Failed to fetch all preferences:', error);
+      const response = await this.callEdgeFunction('GET');
+      
+      if (response.error) {
+        console.error('Failed to fetch all preferences:', response.error);
         return this.getAllFromLocalStorage();
       }
 
-      return data || [];
+      return response.data || [];
     } catch (error) {
       console.error('Error fetching all preferences:', error);
       return this.getAllFromLocalStorage();
@@ -165,18 +174,10 @@ export class UserPreferencesService {
     }
 
     try {
-      const existing = await this.getPreferences(step);
-      if (!existing || !existing.id) {
-        return true; // Nothing to delete
-      }
-
-      const { error } = await DatabaseService.query('user_preferences', {
-        delete: true,
-        filter: ['id', 'eq', existing.id]
-      });
-
-      if (error) {
-        console.error('Failed to delete preferences:', error);
+      const response = await this.callEdgeFunction('DELETE', null, `?step=${step}`);
+      
+      if (response.error) {
+        console.error('Failed to delete preferences:', response.error);
         return false;
       }
 
@@ -187,6 +188,48 @@ export class UserPreferencesService {
       console.error('Error deleting preferences:', error);
       return false;
     }
+  }
+
+  /**
+   * Call the edge function for user preferences
+   * @param {string} method - HTTP method
+   * @param {Object} body - Request body
+   * @param {string} queryParams - Query parameters
+   * @returns {Promise<Object>} Response data
+   */
+  async callEdgeFunction(method, body = null, queryParams = '') {
+    const client = DatabaseService.getClient();
+    if (!client) {
+      throw new Error('Supabase client not available');
+    }
+
+    const token = authService.getAccessToken();
+    if (!token) {
+      throw new Error('No access token available');
+    }
+
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-preferences${queryParams}`;
+    
+    const options = {
+      method,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    };
+
+    if (body && (method === 'POST' || method === 'PUT')) {
+      options.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    return await response.json();
   }
 
   /**
@@ -285,14 +328,11 @@ export class UserPreferencesService {
 
     if (DatabaseService.isConnected()) {
       try {
-        const { error } = await DatabaseService.query('user_preferences', {
-          delete: true,
-          filter: ['user_id', 'eq', user.id]
-        });
-        
-        if (error) {
-          console.error('Failed to clear preferences from database:', error);
-        }
+        // Delete all preferences for the user
+        const stepKeys = Object.values(this.steps);
+        await Promise.all(
+          stepKeys.map(step => this.deletePreferences(step))
+        );
       } catch (error) {
         console.error('Error clearing preferences:', error);
       }
