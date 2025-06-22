@@ -11,6 +11,7 @@ export class CalendarController {
     this.schedulingService = new SchedulingService();
     this.appointments = [];
     this.generatedSchedule = null;
+    this.isGenerating = false;
   }
 
   async initialize() {
@@ -24,12 +25,23 @@ export class CalendarController {
    */
   async loadPreviousSchedule() {
     try {
+      // First try to load from backend
+      const backendSchedule = await this.schedulingService.getSchedule();
+      if (backendSchedule && backendSchedule.length > 0) {
+        console.log('Loading schedule from backend');
+        this.appointments = backendSchedule;
+        this.generatedSchedule = backendSchedule;
+        this.renderCalendar();
+        return;
+      }
+
+      // Fallback to user preferences
       const savedData = await userPreferencesService.getPreferences(
         userPreferencesService.steps.SCHEDULE
       );
       
       if (savedData && savedData.preferences && savedData.preferences.schedule) {
-        console.log('Loading previous schedule');
+        console.log('Loading previous schedule from preferences');
         this.generatedSchedule = savedData.preferences.schedule;
         this.appointments = this.generatedSchedule;
         this.renderCalendar();
@@ -41,9 +53,8 @@ export class CalendarController {
 
   setupCalendarHandlers() {
     // Generate new schedule button
-    const generateBtn = document.querySelector('[onclick="generateNewSchedule()"]');
+    const generateBtn = document.getElementById('generate-schedule-btn');
     if (generateBtn) {
-      generateBtn.removeAttribute('onclick');
       generateBtn.addEventListener('click', this.generateNewSchedule.bind(this));
     }
   }
@@ -59,7 +70,7 @@ export class CalendarController {
 
   async generateSchedule(userAnswers) {
     try {
-      this.appointments = this.schedulingService.generateSchedule(userAnswers);
+      this.appointments = await this.schedulingService.generateSchedule(userAnswers);
       this.generatedSchedule = this.appointments;
       
       // Save the generated schedule
@@ -137,8 +148,12 @@ export class CalendarController {
           <div class="appointment-item" data-appointment-id="${appointment.id}">
             <div class="appointment-dot ${appointment.category}"></div>
             <div class="appointment-info">
-              <div class="appointment-date">${date.getDate()}</div>
               <p class="appointment-type">${appointment.type}</p>
+              <div class="appointment-date">${date.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+              })}</div>
             </div>
           </div>`;
       });
@@ -164,7 +179,12 @@ export class CalendarController {
   }
 
   async generateNewSchedule() {
+    if (this.isGenerating) return;
+
     try {
+      this.isGenerating = true;
+      this.showGeneratingState();
+
       // Get the previous user answers to regenerate with same preferences
       const questionnaireData = await userPreferencesService.getPreferences(
         userPreferencesService.steps.QUESTIONNAIRE
@@ -175,18 +195,91 @@ export class CalendarController {
         userAnswers = questionnaireData.preferences.answers;
       }
 
-      this.appointments = await this.schedulingService.regenerateSchedule(this.appointments);
+      // Generate new schedule using backend function
+      this.appointments = await this.schedulingService.generateSchedule(userAnswers);
       this.generatedSchedule = this.appointments;
       
       // Save the new schedule
       await this.saveSchedule(userAnswers);
       
       this.renderCalendar();
-      alert('New schedule generated based on your preferences!');
+      this.showSuccessMessage(`Generated ${this.appointments.length} appointments based on your preferences!`);
     } catch (error) {
       console.error('Failed to generate new schedule:', error);
-      alert('Failed to generate new schedule. Please try again.');
+      this.showErrorMessage('Failed to generate new schedule. Please try again.');
+    } finally {
+      this.isGenerating = false;
+      this.hideGeneratingState();
     }
+  }
+
+  showGeneratingState() {
+    const generateBtn = document.getElementById('generate-schedule-btn');
+    if (generateBtn) {
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = `
+        <div class="spinner" style="width: 16px; height: 16px; margin-right: 8px;"></div>
+        Generating Schedule...
+      `;
+    }
+  }
+
+  hideGeneratingState() {
+    const generateBtn = document.getElementById('generate-schedule-btn');
+    if (generateBtn) {
+      generateBtn.disabled = false;
+      generateBtn.innerHTML = 'Generate New Schedule';
+    }
+  }
+
+  showSuccessMessage(message) {
+    // Create and show a temporary success message
+    const messageEl = document.createElement('div');
+    messageEl.className = 'success-message';
+    messageEl.textContent = message;
+    messageEl.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--color-success);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      z-index: 1000;
+      box-shadow: var(--shadow-md);
+      max-width: 300px;
+    `;
+    
+    document.body.appendChild(messageEl);
+    
+    setTimeout(() => {
+      messageEl.remove();
+    }, 4000);
+  }
+
+  showErrorMessage(message) {
+    // Create and show a temporary error message
+    const messageEl = document.createElement('div');
+    messageEl.className = 'error-message';
+    messageEl.textContent = message;
+    messageEl.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--color-error);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      z-index: 1000;
+      box-shadow: var(--shadow-md);
+      max-width: 300px;
+    `;
+    
+    document.body.appendChild(messageEl);
+    
+    setTimeout(() => {
+      messageEl.remove();
+    }, 5000);
   }
 
   // Event system

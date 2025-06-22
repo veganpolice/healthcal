@@ -1,16 +1,11 @@
-import { AppointmentService } from './AppointmentService.js';
-import { ProviderService } from './ProviderService.js';
-import { InsuranceService } from './InsuranceService.js';
+import { DatabaseService } from './DatabaseService.js';
+import { authService } from './AuthService.js';
 
 /**
  * Handles appointment scheduling logic and optimization
  */
 export class SchedulingService {
   constructor() {
-    this.appointmentService = new AppointmentService();
-    this.providerService = new ProviderService();
-    this.insuranceService = new InsuranceService();
-    
     // Define category mapping for provider selection
     this.categoryMap = {
       'dental': 'Dentist',
@@ -22,11 +17,106 @@ export class SchedulingService {
   }
 
   /**
-   * Generate optimized schedule based on user preferences
+   * Generate optimized schedule based on user preferences using backend function
+   * @param {Object} userAnswers - User questionnaire answers
+   * @returns {Promise<Array>} Generated appointments
+   */
+  async generateSchedule(userAnswers) {
+    const client = DatabaseService.getClient();
+    if (!client) {
+      console.warn('Database not connected. Using local generation.');
+      return this.generateLocalSchedule(userAnswers);
+    }
+
+    try {
+      const token = authService.getAccessToken();
+      if (!token) {
+        throw new Error('No access token available');
+      }
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-schedule`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userAnswers })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      console.log('Schedule generated successfully:', result.message);
+      return result.data || [];
+    } catch (error) {
+      console.error('Failed to generate schedule via backend:', error);
+      // Fallback to local generation
+      return this.generateLocalSchedule(userAnswers);
+    }
+  }
+
+  /**
+   * Get existing schedule from backend
+   * @returns {Promise<Array>} Existing appointments
+   */
+  async getSchedule() {
+    const client = DatabaseService.getClient();
+    if (!client) {
+      console.warn('Database not connected. Using sample data.');
+      return this.getSampleSchedule();
+    }
+
+    try {
+      const token = authService.getAccessToken();
+      if (!token) {
+        throw new Error('No access token available');
+      }
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-schedule`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      return result.data || [];
+    } catch (error) {
+      console.error('Failed to fetch schedule from backend:', error);
+      // Fallback to sample data
+      return this.getSampleSchedule();
+    }
+  }
+
+  /**
+   * Local fallback schedule generation
    * @param {Object} userAnswers - User questionnaire answers
    * @returns {Array} Generated appointments
    */
-  generateSchedule(userAnswers) {
+  generateLocalSchedule(userAnswers) {
     const baseSchedule = this.getBaseScheduleTemplate();
     const optimizedSchedule = this.optimizeSchedule(baseSchedule, userAnswers);
     
@@ -76,14 +166,14 @@ export class SchedulingService {
       {
         type: "Annual Physical",
         category: "medical",
-        duration: "30 minutes",
+        duration: "45 minutes",
         frequency: "yearly",
         priority: "high"
       },
       {
         type: "Blood Work",
         category: "medical",
-        duration: "15 minutes",
+        duration: "20 minutes",
         frequency: "yearly",
         priority: "high"
       },
@@ -98,14 +188,14 @@ export class SchedulingService {
       {
         type: "Physiotherapy Assessment",
         category: "physio",
-        duration: "45 minutes",
+        duration: "60 minutes",
         frequency: "as needed",
         priority: "medium"
       },
       {
         type: "Physiotherapy Session",
         category: "physio",
-        duration: "30 minutes",
+        duration: "45 minutes",
         frequency: "monthly",
         priority: "medium"
       },
@@ -122,6 +212,22 @@ export class SchedulingService {
         category: "massage",
         duration: "90 minutes",
         frequency: "quarterly",
+        priority: "low"
+      },
+      // Mental health
+      {
+        type: "Mental Health Consultation",
+        category: "mental",
+        duration: "50 minutes",
+        frequency: "quarterly",
+        priority: "medium"
+      },
+      // Chiropractic
+      {
+        type: "Chiropractic Assessment",
+        category: "chiro",
+        duration: "45 minutes",
+        frequency: "as needed",
         priority: "low"
       }
     ];
@@ -163,7 +269,9 @@ export class SchedulingService {
       'vision': 'Vision care',
       'physio': 'Physiotherapy',
       'massage': 'Massage therapy',
-      'medical': 'Preventive care'
+      'medical': 'Preventive care',
+      'mental': 'Mental health',
+      'chiro': 'Chiropractic care'
     };
 
     // Always include high priority appointments (medical, dental)
@@ -240,8 +348,7 @@ export class SchedulingService {
         // Generate 2-3 appointments for assessment and follow-ups
         dates.push(
           this.getOptimalDate(new Date(year, 2, 10), timePreference),
-          this.getOptimalDate(new Date(year, 7, 14), timePreference),
-          this.getOptimalDate(new Date(year, 10, 20), timePreference)
+          this.getOptimalDate(new Date(year, 7, 14), timePreference)
         );
         break;
     }
@@ -276,9 +383,15 @@ export class SchedulingService {
    * @returns {Object} Selected provider
    */
   selectOptimalProvider(category, userAnswers) {
-    const providerService = new ProviderService();
-    const providers = providerService.sampleProviders;
-    
+    // Sample providers for fallback
+    const providers = [
+      { name: 'Dr. Sarah Chen', specialty: 'Physiotherapist', languages: ['English', 'Mandarin'] },
+      { name: 'Dr. Michael Rodriguez', specialty: 'Dentist', languages: ['English', 'Spanish'] },
+      { name: 'Lisa Thompson', specialty: 'Massage Therapist', languages: ['English', 'French'] },
+      { name: 'Dr. Amanda Foster', specialty: 'Optometrist', languages: ['English'] },
+      { name: 'Dr. Jennifer Kim', specialty: 'Family Physician', languages: ['English', 'Korean'] }
+    ];
+
     // Filter by category using the class property
     const categoryProviders = providers.filter(provider => {
       const expectedSpecialty = this.categoryMap[category];
@@ -289,24 +402,7 @@ export class SchedulingService {
       return providers[0]; // Fallback
     }
 
-    // Apply user preferences
-    let filteredProviders = categoryProviders;
-
-    // Language preference
-    if (userAnswers.languagePreference && userAnswers.languagePreference !== "No preference") {
-      const preferredLang = userAnswers.languagePreference.split(' and ')[1];
-      if (preferredLang) {
-        const langFiltered = filteredProviders.filter(p => 
-          p.languages.includes(preferredLang)
-        );
-        if (langFiltered.length > 0) {
-          filteredProviders = langFiltered;
-        }
-      }
-    }
-
-    // Return highest rated provider from filtered list
-    return filteredProviders.sort((a, b) => b.rating - a.rating)[0];
+    return categoryProviders[0];
   }
 
   /**
@@ -321,43 +417,85 @@ export class SchedulingService {
       'vision': 120,
       'physio': 85,
       'massage': 120,
-      'medical': 200
+      'medical': 200,
+      'mental': 180,
+      'chiro': 90
     };
 
     const baseCost = baseCosts[category] || 100;
-    const costBreakdown = this.insuranceService.calculateCost(category, baseCost);
+    
+    // Sample insurance coverage
+    const coverage = {
+      'dental': { percentage: 80 },
+      'vision': { percentage: 100 },
+      'physio': { percentage: 100 },
+      'massage': { percentage: 80 },
+      'medical': { percentage: 100 },
+      'mental': { percentage: 80 },
+      'chiro': { percentage: 80 }
+    };
 
-    if (costBreakdown.userCost === 0) {
+    const serviceCoverage = coverage[category];
+    if (!serviceCoverage) {
+      return `$${baseCost} (no coverage)`;
+    }
+
+    const insurancePays = (baseCost * serviceCoverage.percentage) / 100;
+    const userPays = baseCost - insurancePays;
+
+    if (userPays === 0) {
       return "$0 (fully covered)";
     } else {
-      return `$${Math.round(costBreakdown.userCost)} (after insurance)`;
+      return `$${Math.round(userPays)} (after insurance)`;
     }
+  }
+
+  /**
+   * Get sample schedule for fallback
+   * @returns {Array} Sample appointments
+   */
+  getSampleSchedule() {
+    return [
+      {
+        id: 1,
+        date: "2025-01-15",
+        type: "Dental Cleaning",
+        provider: "Dr. Michael Rodriguez",
+        duration: "60 minutes",
+        estimated_cost: "$30 (after insurance)",
+        status: "proposed",
+        category: "dental"
+      },
+      {
+        id: 2,
+        date: "2025-01-28",
+        type: "Eye Exam",
+        provider: "Dr. Amanda Foster",
+        duration: "45 minutes",
+        estimated_cost: "$0 (fully covered)",
+        status: "proposed",
+        category: "vision"
+      },
+      {
+        id: 3,
+        date: "2025-03-10",
+        type: "Annual Physical",
+        provider: "Dr. Jennifer Kim",
+        duration: "45 minutes",
+        estimated_cost: "$0 (fully covered)",
+        status: "proposed",
+        category: "medical"
+      }
+    ];
   }
 
   /**
    * Regenerate schedule with variations
    * @param {Array} currentAppointments - Current appointments
-   * @returns {Array} New schedule
+   * @returns {Promise<Array>} New schedule
    */
   async regenerateSchedule(currentAppointments) {
-    // Create variations of current schedule
-    const newSchedule = currentAppointments.map(appointment => {
-      const originalDate = new Date(appointment.date);
-      const randomDays = Math.floor(Math.random() * 14) - 7; // +/- 7 days
-      const newDate = new Date(originalDate);
-      newDate.setDate(newDate.getDate() + randomDays);
-      
-      // Ensure weekday
-      while (newDate.getDay() === 0 || newDate.getDay() === 6) {
-        newDate.setDate(newDate.getDate() + 1);
-      }
-      
-      return {
-        ...appointment,
-        date: newDate.toISOString().split('T')[0]
-      };
-    });
-
-    return newSchedule.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Use the backend function to regenerate
+    return await this.generateSchedule({});
   }
 }
