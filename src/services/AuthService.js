@@ -91,6 +91,15 @@ export class AuthService {
   }
 
   /**
+   * Get the appropriate redirect URL for OAuth
+   */
+  getRedirectUrl() {
+    // Always use the production URL for OAuth redirects
+    // This ensures consistent behavior regardless of where the auth is initiated
+    return 'https://healthcalai.netlify.app';
+  }
+
+  /**
    * Sign in with Google
    */
   async signInWithGoogle() {
@@ -100,11 +109,8 @@ export class AuthService {
     }
 
     try {
-      // Determine the redirect URL based on environment
-      const isProduction = window.location.hostname !== 'localhost';
-      const redirectTo = isProduction 
-        ? 'https://healthcalai.netlify.app'
-        : window.location.origin;
+      const redirectTo = this.getRedirectUrl();
+      console.log('Redirecting OAuth to:', redirectTo);
 
       const { data, error } = await client.auth.signInWithOAuth({
         provider: 'google',
