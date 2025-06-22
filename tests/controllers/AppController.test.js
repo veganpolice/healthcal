@@ -74,13 +74,21 @@ describe('AppController', () => {
     })
 
     it('should handle initialization errors', async () => {
-      // Mock one controller to throw an error
-      const { PageManager } = await import('../../src/controllers/PageManager.js')
-      PageManager.mockImplementation(() => ({
-        initialize: vi.fn(() => Promise.reject(new Error('Test error')))
-      }))
+      // Create a fresh AppController instance for this test
+      const errorAppController = new AppController()
       
-      await expect(appController.initialize()).rejects.toThrow('Test error')
+      // Initialize first to create the controllers
+      await errorAppController.initialize()
+      
+      // Now mock the pageManager's initialize method to throw an error
+      vi.mocked(errorAppController.controllers.pageManager.initialize).mockImplementationOnce(() => {
+        throw new Error('Test error')
+      })
+      
+      // Reset initialization state to test error handling
+      errorAppController.isInitialized = false
+      
+      await expect(errorAppController.initialize()).rejects.toThrow('Test error')
     })
   })
 

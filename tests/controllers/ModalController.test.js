@@ -41,8 +41,15 @@ describe('ModalController', () => {
         </div>
       </div>
       <input id="preferredDate" />
-      <select id="preferredTime"></select>
-      <select id="alternativeProvider"></select>
+      <select id="preferredTime">
+        <option value="Morning">Morning</option>
+        <option value="Afternoon">Afternoon</option>
+        <option value="Evening">Evening</option>
+      </select>
+      <select id="alternativeProvider">
+        <option value="Any">Any</option>
+        <option value="Specific">Specific</option>
+      </select>
       <textarea id="changeNotes"></textarea>
     `
   })

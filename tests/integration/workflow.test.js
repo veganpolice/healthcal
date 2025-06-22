@@ -90,7 +90,7 @@ describe('Application Workflow Integration', () => {
         detail: mockAnswers
       }))
       
-      // Verify the flow
+      // Verify the flow - expect the detail payload, not the CustomEvent
       expect(pageManager.showPage).toHaveBeenCalledWith('calendar')
       expect(calendarController.generateSchedule).toHaveBeenCalledWith(mockAnswers)
     })
@@ -108,32 +108,28 @@ describe('Application Workflow Integration', () => {
         detail: mockAppointment
       }))
       
-      // Verify the flow
+      // Verify the flow - expect the detail payload, not the CustomEvent
       expect(modalController.showAppointmentDetails).toHaveBeenCalledWith(mockAppointment)
     })
   })
 
   describe('Error Handling', () => {
     it('should handle controller initialization errors gracefully', async () => {
-      // Mock a controller to fail initialization
-      const originalConsoleError = console.error
-      console.error = vi.fn()
+      // Create a fresh AppController instance for this test
+      const errorAppController = new AppController()
       
-      // This should throw an error which we can catch
-      try {
-        // Force an error by mocking a controller constructor to throw
-        vi.doMock('../../src/controllers/PageManager.js', () => ({
-          PageManager: vi.fn(() => {
-            throw new Error('Mock initialization error')
-          })
-        }))
-        
-        const failingAppController = new AppController()
-        await expect(failingAppController.initialize()).rejects.toThrow()
-      } finally {
-        console.error = originalConsoleError
-        vi.doUnmock('../../src/controllers/PageManager.js')
-      }
+      // Initialize first to create the controllers
+      await errorAppController.initialize()
+      
+      // Now mock the pageManager's initialize method to throw an error
+      vi.mocked(errorAppController.controllers.pageManager.initialize).mockImplementationOnce(() => {
+        throw new Error('Mock initialization error')
+      })
+      
+      // Reset initialization state to test error handling
+      errorAppController.isInitialized = false
+      
+      await expect(errorAppController.initialize()).rejects.toThrow('Mock initialization error')
     })
   })
 })

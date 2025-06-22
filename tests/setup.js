@@ -46,4 +46,13 @@ document.body.innerHTML = `
   <div id="appointmentModal" class="modal"></div>
   <div id="modalBody"></div>
   <div id="modalTitle"></div>
+  <select id="preferredTime">
+    <option value="Morning">Morning</option>
+    <option value="Afternoon">Afternoon</option>
+    <option value="Evening">Evening</option>
+  </select>
+  <select id="alternativeProvider">
+    <option value="Any">Any</option>
+    <option value="Specific">Specific</option>
+  </select>
 `
