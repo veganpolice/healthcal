@@ -99,10 +99,18 @@ export class AppController {
    * Set up communication between controllers
    */
   setupControllerCommunication() {
-    // Upload completion -> Questionnaire
-    this.controllers.upload.on('uploadComplete', () => {
+    // Upload completion -> Questionnaire (with dynamic questions)
+    this.controllers.upload.on('uploadComplete', (e) => {
+      const data = e.detail || e;
       this.controllers.pageManager.showPage('questionnaire');
-      this.controllers.questionnaire.start();
+      
+      // Start questionnaire with dynamic questions if available
+      if (data && data.dynamicQuestionnaire) {
+        console.log('Starting questionnaire with AI-generated questions');
+        this.controllers.questionnaire.start(data.dynamicQuestionnaire);
+      } else {
+        this.controllers.questionnaire.start();
+      }
     });
 
     // Questionnaire completion -> Calendar

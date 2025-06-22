@@ -9,6 +9,7 @@ export class QuestionnaireController {
     this.questionnaireService = new QuestionnaireService();
     this.currentQuestionIndex = 0;
     this.userAnswers = {};
+    this.dynamicQuestions = null; // Store dynamic questions from AI analysis
   }
 
   async initialize() {
@@ -29,6 +30,7 @@ export class QuestionnaireController {
         console.log('Loading previous questionnaire answers');
         this.userAnswers = savedData.preferences.answers;
         this.currentQuestionIndex = savedData.preferences.currentQuestionIndex || 0;
+        this.dynamicQuestions = savedData.preferences.dynamicQuestions;
         
         // If questionnaire was completed, show completion state
         if (savedData.preferences.completed) {
@@ -56,7 +58,16 @@ export class QuestionnaireController {
     }
   }
 
-  start() {
+  /**
+   * Start questionnaire with optional dynamic questions
+   * @param {Array} dynamicQuestions - Questions generated from AI analysis
+   */
+  start(dynamicQuestions = null) {
+    // Use dynamic questions if provided, otherwise use stored or default
+    if (dynamicQuestions) {
+      this.dynamicQuestions = dynamicQuestions;
+    }
+
     // Only reset if we don't have previous answers
     if (Object.keys(this.userAnswers).length === 0) {
       this.currentQuestionIndex = 0;
@@ -67,8 +78,15 @@ export class QuestionnaireController {
     this.updateProgress();
   }
 
+  /**
+   * Get the current set of questions (dynamic or default)
+   */
+  getQuestions() {
+    return this.dynamicQuestions || this.questionnaireService.getQuestions();
+  }
+
   displayQuestion() {
-    const questions = this.questionnaireService.getQuestions();
+    const questions = this.getQuestions();
     const question = questions[this.currentQuestionIndex];
     const container = document.getElementById('questionContainer');
     
@@ -128,8 +146,14 @@ export class QuestionnaireController {
 
   renderQuestion(question) {
     let html = `<div class="question">
-      <h3>${question.question}</h3>
-      <div class="question-options">`;
+      <h3>${question.question}</h3>`;
+    
+    // Add AI-generated indicator if this is a dynamic question
+    if (this.dynamicQuestions && question.aiGenerated) {
+      html += `<p class="ai-indicator">🤖 This question was customized based on your insurance coverage</p>`;
+    }
+    
+    html += `<div class="question-options">`;
     
     switch (question.type) {
       case 'radio':
@@ -259,6 +283,7 @@ export class QuestionnaireController {
       const progressData = {
         answers: this.userAnswers,
         currentQuestionIndex: this.currentQuestionIndex,
+        dynamicQuestions: this.dynamicQuestions,
         completed: false,
         lastUpdated: new Date().toISOString()
       };
@@ -273,7 +298,7 @@ export class QuestionnaireController {
   }
 
   async nextQuestion() {
-    const questions = this.questionnaireService.getQuestions();
+    const questions = this.getQuestions();
     
     if (this.currentQuestionIndex < questions.length - 1) {
       this.currentQuestionIndex++;
@@ -295,7 +320,7 @@ export class QuestionnaireController {
   }
 
   updateProgress() {
-    const questions = this.questionnaireService.getQuestions();
+    const questions = this.getQuestions();
     const progress = ((this.currentQuestionIndex + 1) / questions.length) * 100;
     
     const progressFill = document.getElementById('progressFill');
@@ -308,7 +333,7 @@ export class QuestionnaireController {
   }
 
   updateNavigationButtons() {
-    const questions = this.questionnaireService.getQuestions();
+    const questions = this.getQuestions();
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     
@@ -326,6 +351,7 @@ export class QuestionnaireController {
       const completedData = {
         answers: this.userAnswers,
         currentQuestionIndex: this.currentQuestionIndex,
+        dynamicQuestions: this.dynamicQuestions,
         completed: true,
         completedAt: new Date().toISOString()
       };

@@ -12,6 +12,7 @@ export class UploadController {
     this.eventListeners = new Map();
     this.isDemoMode = false; // Add flag to track demo mode
     this.extractedData = null; // Store extracted data
+    this.dynamicQuestionnaire = null; // Store dynamic questionnaire
   }
 
   async initialize() {
@@ -31,6 +32,7 @@ export class UploadController {
       if (savedData && savedData.preferences) {
         console.log('Loading previous upload data');
         this.extractedData = savedData.preferences.extractedData;
+        this.dynamicQuestionnaire = savedData.preferences.dynamicQuestionnaire;
         
         // If we have previous data, show the results
         if (this.extractedData) {
@@ -82,7 +84,10 @@ export class UploadController {
       continueBtn.removeAttribute('onclick');
       continueBtn.addEventListener('click', async () => {
         await this.saveUploadData();
-        this.emit('uploadComplete');
+        this.emit('uploadComplete', {
+          extractedData: this.extractedData,
+          dynamicQuestionnaire: this.dynamicQuestionnaire
+        });
       });
     }
   }
@@ -125,14 +130,17 @@ export class UploadController {
       // Start processing
       this.showProcessing();
 
-      // Process with insurance service
+      // Process with insurance service (now includes AI analysis)
       const extractedData = await this.insuranceService.processDocument(file);
       this.extractedData = extractedData;
-      
+
+      // Generate dynamic questionnaire based on analysis
+      this.dynamicQuestionnaire = this.insuranceService.generateQuestionnaire(extractedData);
+
       // Save the upload data
       await this.saveUploadData(file.name, file.type, file.size);
       
-      // Show results
+      // Show results with AI analysis information
       this.showResults(extractedData);
     } catch (error) {
       console.error('File processing failed:', error);
@@ -155,6 +163,9 @@ export class UploadController {
       const demoData = this.insuranceService.getDemoData();
       this.extractedData = demoData;
       
+      // Generate dynamic questionnaire for demo data
+      this.dynamicQuestionnaire = this.insuranceService.generateQuestionnaire(demoData);
+      
       // Save the demo data
       await this.saveUploadData('demo-policy.pdf', 'application/pdf', 0, true);
       
@@ -171,6 +182,7 @@ export class UploadController {
     try {
       const uploadData = {
         extractedData: this.extractedData,
+        dynamicQuestionnaire: this.dynamicQuestionnaire,
         fileInfo: fileName ? {
           name: fileName,
           type: fileType,
@@ -208,6 +220,12 @@ export class UploadController {
     
     if (processingSection) {
       processingSection.classList.remove('hidden');
+      
+      // Update processing text to mention AI analysis
+      const processingText = processingSection.querySelector('p');
+      if (processingText) {
+        processingText.textContent = 'AI analyzing your document and extracting coverage details...';
+      }
     }
   }
 
@@ -233,11 +251,92 @@ export class UploadController {
       processingSection.classList.add('hidden');
     }
     
+    // Update results section with AI analysis information
+    this.updateResultsDisplay(data);
+    
     // Show results section
     const resultsSection = document.getElementById('extractedInfo');
     if (resultsSection) {
       resultsSection.classList.remove('hidden');
       resultsSection.classList.add('fade-in');
+    }
+  }
+
+  /**
+   * Update the results display with AI analysis information
+   */
+  updateResultsDisplay(data) {
+    const resultsSection = document.getElementById('extractedInfo');
+    if (!resultsSection) return;
+
+    // Update the title to indicate AI processing
+    const title = resultsSection.querySelector('h3');
+    if (title) {
+      if (data.aiProcessed) {
+        title.innerHTML = `
+          <span>AI-Analyzed Insurance Information</span>
+          <span class="confidence-badge confidence-${data.confidence}">${data.confidence} confidence</span>
+        `;
+      } else {
+        title.textContent = 'Extracted Insurance Information';
+      }
+    }
+
+    // Update info cards with health categories
+    const infoCards = resultsSection.querySelector('.info-cards');
+    if (infoCards && data.healthCategories) {
+      let cardsHtml = '';
+      
+      // Plan details card
+      cardsHtml += `
+        <div class="card">
+          <div class="card__body">
+            <h4>Plan Details</h4>
+            <p><strong>Plan Name:</strong> ${data.planName}</p>
+            <p><strong>Policy Number:</strong> ${data.policyNumber}</p>
+            ${data.aiProcessed ? '<p><strong>Analysis:</strong> AI Processed</p>' : ''}
+          </div>
+        </div>
+      `;
+
+      // Health category cards
+      data.healthCategories.forEach(category => {
+        if (category.covered) {
+          cardsHtml += `
+            <div class="card">
+              <div class="card__body">
+                <h4>${category.displayName}</h4>
+                <p><strong>Coverage:</strong> ${category.coveragePercentage}%</p>
+                ${category.annualLimit ? `<p><strong>Annual Limit:</strong> $${category.annualLimit.toLocaleString()}</p>` : ''}
+                ${category.frequency ? `<p><strong>Frequency:</strong> ${category.frequency}</p>` : ''}
+              </div>
+            </div>
+          `;
+        }
+      });
+
+      infoCards.innerHTML = cardsHtml;
+    }
+
+    // Add AI analysis summary if available
+    if (data.aiProcessed && data.recommendations) {
+      const aiSummary = document.createElement('div');
+      aiSummary.className = 'ai-summary';
+      aiSummary.innerHTML = `
+        <div class="card">
+          <div class="card__body">
+            <h4>🤖 AI Recommendations</h4>
+            ${data.recommendations.priorityCategories ? 
+              `<p><strong>Priority Categories:</strong> ${data.recommendations.priorityCategories.join(', ')}</p>` : ''}
+            <p><strong>Categories Found:</strong> ${data.healthCategories.length} health coverage areas identified</p>
+            <p class="text-sm text-secondary">Your questionnaire will be customized based on these findings.</p>
+          </div>
+        </div>
+      `;
+      
+      if (infoCards) {
+        infoCards.appendChild(aiSummary);
+      }
     }
   }
 

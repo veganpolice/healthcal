@@ -15,7 +15,7 @@
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "format": "prettier --write src/**/*.{js,jsx,ts,tsx,css,html}"
   },
-  "keywords": ["healthcare", "ai", "scheduling", "appointments"],
+  "keywords": ["healthcare", "ai", "scheduling", "appointments", "perplexity"],
   "author": "Aaron Rosenberg",
   "license": "MIT",
   "dependencies": {

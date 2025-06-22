@@ -63,3 +63,138 @@
     display: none;
   }
 }
+
+/* AI Analysis specific styles */
+.confidence-badge {
+  display: inline-block;
+  padding: var(--space-2) var(--space-8);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  margin-left: var(--space-8);
+  text-transform: uppercase;
+}
+
+.confidence-high {
+  background: rgba(var(--color-success-rgb), 0.1);
+  color: var(--color-success);
+  border: 1px solid rgba(var(--color-success-rgb), 0.3);
+}
+
+.confidence-medium {
+  background: rgba(var(--color-warning-rgb), 0.1);
+  color: var(--color-warning);
+  border: 1px solid rgba(var(--color-warning-rgb), 0.3);
+}
+
+.confidence-low {
+  background: rgba(var(--color-error-rgb), 0.1);
+  color: var(--color-error);
+  border: 1px solid rgba(var(--color-error-rgb), 0.3);
+}
+
+.confidence-demo {
+  background: rgba(var(--color-info-rgb), 0.1);
+  color: var(--color-info);
+  border: 1px solid rgba(var(--color-info-rgb), 0.3);
+}
+
+.ai-summary {
+  margin-top: var(--space-16);
+}
+
+.ai-indicator {
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  margin-bottom: var(--space-12);
+  padding: var(--space-8);
+  background: rgba(var(--color-primary-rgb, 33, 128, 141), 0.1);
+  border-radius: var(--radius-base);
+  border-left: 3px solid var(--color-primary);
+}
+
+/* Enhanced processing animation */
+.processing-animation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-32);
+}
+
+.processing-animation h3 {
+  background: linear-gradient(45deg, var(--color-primary), var(--color-primary-hover));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Dynamic questionnaire styles */
+.question h3 {
+  position: relative;
+}
+
+.question h3::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-standard);
+}
+
+.question:hover h3::before {
+  opacity: 1;
+}
+
+/* Enhanced info cards for AI analysis */
+.info-cards .card {
+  position: relative;
+  overflow: visible;
+}
+
+.info-cards .card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(45deg, transparent, var(--color-primary), transparent);
+  border-radius: var(--radius-lg);
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-standard);
+  z-index: -1;
+}
+
+.info-cards .card:hover::before {
+  opacity: 0.1;
+}
+
+/* Perplexity branding */
+.ai-powered-by {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-16);
+  padding: var(--space-8);
+  border-top: 1px solid var(--color-border);
+}
+
+.ai-powered-by::before {
+  content: '🤖';
+  font-size: var(--font-size-sm);
+}
