@@ -21,6 +21,9 @@ export class AuthService {
     }
 
     try {
+      // Check if we're returning from OAuth (tokens in URL hash)
+      await this.handleOAuthCallback();
+
       // Get initial session
       const { data: { session }, error } = await client.auth.getSession();
       if (error) {
@@ -47,6 +50,43 @@ export class AuthService {
 
     } catch (error) {
       console.error('Auth initialization failed:', error);
+    }
+  }
+
+  /**
+   * Handle OAuth callback from URL hash
+   */
+  async handleOAuthCallback() {
+    const client = DatabaseService.getClient();
+    if (!client) return;
+
+    // Check if we have OAuth tokens in the URL hash
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+
+    if (accessToken) {
+      try {
+        console.log('Processing OAuth callback...');
+        
+        // Set the session using the tokens from the URL
+        const { data, error } = await client.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+
+        if (error) {
+          console.error('Error setting session from OAuth callback:', error);
+          return;
+        }
+
+        // Clean up the URL by removing the hash
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        console.log('OAuth callback processed successfully');
+      } catch (error) {
+        console.error('Error handling OAuth callback:', error);
+      }
     }
   }
 
@@ -138,7 +178,7 @@ export class AuthService {
         .eq('id', this.user.id)
         .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         console.error('Error fetching user profile:', error);
         return null;
       }

@@ -29,10 +29,15 @@ export class AuthController {
       googleSignInBtn.addEventListener('click', this.handleGoogleSignIn.bind(this));
     }
 
-    // Sign out button
+    // Sign out buttons
     const signOutBtn = document.getElementById('signout-btn');
     if (signOutBtn) {
       signOutBtn.addEventListener('click', this.handleSignOut.bind(this));
+    }
+
+    const signOutBtnProfile = document.getElementById('signout-btn-profile');
+    if (signOutBtnProfile) {
+      signOutBtnProfile.addEventListener('click', this.handleSignOut.bind(this));
     }
 
     // Profile form
@@ -54,8 +59,9 @@ export class AuthController {
 
   async handleGoogleSignIn() {
     try {
-      this.showLoading('Signing in with Google...');
+      this.showLoading('Redirecting to Google...');
       await authService.signInWithGoogle();
+      // Note: User will be redirected to Google, so we won't reach this point
     } catch (error) {
       console.error('Google sign in failed:', error);
       this.showError('Failed to sign in with Google. Please try again.');
@@ -107,6 +113,9 @@ export class AuthController {
     // Load user profile
     await this.loadUserProfile();
     
+    // Show success message
+    this.showSuccess('Successfully signed in!');
+    
     // Show main application
     this.emit('authenticationComplete', user);
   }
@@ -124,8 +133,18 @@ export class AuthController {
   async loadUserProfile() {
     try {
       const profile = await authService.getUserProfile();
+      const user = authService.getCurrentUser();
+      
       if (profile) {
         this.displayUserProfile(profile);
+      } else if (user) {
+        // Create profile from user metadata if it doesn't exist
+        const userProfile = {
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+          email: user.email || '',
+          avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || ''
+        };
+        this.displayUserProfile(userProfile);
       }
     } catch (error) {
       console.error('Failed to load user profile:', error);
@@ -137,15 +156,27 @@ export class AuthController {
     const profileName = document.getElementById('profile-name');
     const profileEmail = document.getElementById('profile-email');
     const profileAvatar = document.getElementById('profile-avatar');
+    const profileNameInitial = document.getElementById('profile-name-initial');
     const headerUserName = document.getElementById('header-user-name');
 
-    if (profileName) profileName.textContent = profile.full_name || 'User';
-    if (profileEmail) profileEmail.textContent = profile.email || '';
-    if (headerUserName) headerUserName.textContent = profile.full_name || 'User';
+    const displayName = profile.full_name || 'User';
+    const displayEmail = profile.email || '';
+
+    if (profileName) profileName.textContent = displayName;
+    if (profileEmail) profileEmail.textContent = displayEmail;
+    if (headerUserName) headerUserName.textContent = displayName;
     
+    // Handle avatar
     if (profileAvatar && profile.avatar_url) {
       profileAvatar.src = profile.avatar_url;
       profileAvatar.style.display = 'block';
+      if (profileNameInitial) profileNameInitial.style.display = 'none';
+    } else if (profileNameInitial) {
+      // Show initials if no avatar
+      const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase();
+      profileNameInitial.textContent = initials;
+      profileNameInitial.style.display = 'flex';
+      if (profileAvatar) profileAvatar.style.display = 'none';
     }
 
     // Update form fields
@@ -161,12 +192,21 @@ export class AuthController {
     const profileName = document.getElementById('profile-name');
     const profileEmail = document.getElementById('profile-email');
     const profileAvatar = document.getElementById('profile-avatar');
+    const profileNameInitial = document.getElementById('profile-name-initial');
     const headerUserName = document.getElementById('header-user-name');
 
     if (profileName) profileName.textContent = '';
     if (profileEmail) profileEmail.textContent = '';
     if (headerUserName) headerUserName.textContent = '';
     if (profileAvatar) profileAvatar.style.display = 'none';
+    if (profileNameInitial) profileNameInitial.textContent = '';
+
+    // Clear form fields
+    const fullNameInput = document.getElementById('profile-full-name');
+    const emailInput = document.getElementById('profile-email-input');
+    
+    if (fullNameInput) fullNameInput.value = '';
+    if (emailInput) emailInput.value = '';
   }
 
   showLoading(message = 'Loading...') {
