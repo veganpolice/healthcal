@@ -2,17 +2,25 @@
   "name": "healthsync-ai",
   "version": "1.0.0",
   "description": "Smart Healthcare Appointment Scheduling with AI",
-  "main": "index.html",
+  "type": "module",
+  "main": "src/main.js",
   "scripts": {
-    "dev": "npx serve . -p 3000",
-    "start": "npx serve . -p 3000",
-    "build": "echo 'Static site - no build needed'",
-    "preview": "npx serve . -p 3000"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
+    "format": "prettier --write src/**/*.{js,jsx,ts,tsx,css,html}"
   },
   "keywords": ["healthcare", "ai", "scheduling", "appointments"],
   "author": "Aaron Rosenberg",
   "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "date-fns": "^3.0.0"
+  },
   "devDependencies": {
-    "serve": "^14.2.1"
+    "vite": "^5.0.0",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.0"
   }
 }
