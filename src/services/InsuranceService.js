@@ -80,7 +80,7 @@ export class InsuranceService {
           messages: [
             {
               role: 'system',
-              content: 'You are an expert insurance document analyzer. Extract key information from insurance documents and return structured data in JSON format.'
+              content: 'You are an expert insurance document analyzer. Extract key information from insurance documents and return structured data in JSON format. IMPORTANT: Return ONLY valid JSON without any markdown formatting, code blocks, or additional text.'
             },
             {
               role: 'user',
@@ -96,7 +96,7 @@ export class InsuranceService {
               
               Document text: ${documentText}
               
-              Return only valid JSON, no additional text.`
+              Return only valid JSON, no markdown code blocks, no additional text or formatting.`
             }
           ],
           max_tokens: 1000,
@@ -115,11 +115,19 @@ export class InsuranceService {
 
       if (data.choices && data.choices[0] && data.choices[0].message) {
         try {
-          const extractedData = JSON.parse(data.choices[0].message.content);
+          let responseContent = data.choices[0].message.content;
+          console.log('Raw response content:', responseContent);
+          
+          // Clean up the response content to handle markdown code blocks
+          responseContent = this.cleanJsonResponse(responseContent);
+          console.log('Cleaned response content:', responseContent);
+          
+          const extractedData = JSON.parse(responseContent);
           console.log('Successfully parsed insurance data:', extractedData);
           return this.validateAndNormalizeData(extractedData);
         } catch (parseError) {
           console.error('Error parsing Perplexity response:', parseError);
+          console.error('Response content was:', data.choices[0].message.content);
           return this.getFallbackAnalysis(documentText);
         }
       } else {
@@ -131,6 +139,29 @@ export class InsuranceService {
       console.error('Perplexity API request failed:', error);
       return this.getFallbackAnalysis(documentText);
     }
+  }
+
+  /**
+   * Clean JSON response by removing markdown code blocks and other formatting
+   * @param {string} responseContent - Raw response from Perplexity
+   * @returns {string} Cleaned JSON string
+   */
+  cleanJsonResponse(responseContent) {
+    // Remove markdown code blocks
+    let cleaned = responseContent.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
+    
+    // Remove any leading/trailing whitespace
+    cleaned = cleaned.trim();
+    
+    // If the response starts with text before JSON, try to extract just the JSON part
+    const jsonStart = cleaned.indexOf('{');
+    const jsonEnd = cleaned.lastIndexOf('}');
+    
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+    }
+    
+    return cleaned;
   }
 
   /**
@@ -337,5 +368,128 @@ export class InsuranceService {
       userCost,
       coveragePercentage: coverage.percentage
     };
+  }
+
+  /**
+   * Generate dynamic questionnaire based on extracted data
+   * @param {Object} extractedData - The extracted insurance data
+   * @returns {Array} Dynamic questionnaire questions
+   */
+  generateQuestionnaire(extractedData) {
+    const baseQuestions = [
+      {
+        id: 1,
+        question: "What time of day do you prefer for medical appointments?",
+        type: "radio",
+        options: [
+          "Morning (8AM - 12PM)",
+          "Afternoon (12PM - 5PM)", 
+          "Evening (5PM - 8PM)",
+          "No preference"
+        ],
+        key: "timePreference",
+        aiGenerated: false
+      }
+    ];
+
+    // Add coverage-specific questions if we have coverage data
+    if (extractedData.coverage) {
+      const coveredServices = Object.keys(extractedData.coverage).filter(service => 
+        extractedData.coverage[service].percentage > 0
+      );
+
+      if (coveredServices.length > 0) {
+        const serviceDisplayNames = {
+          dental: 'Dental Care',
+          physiotherapy: 'Physiotherapy',
+          massage: 'Massage Therapy',
+          vision: 'Vision Care',
+          medical: 'Medical Care'
+        };
+
+        const serviceOptions = coveredServices.map(service => 
+          serviceDisplayNames[service] || service
+        );
+
+        baseQuestions.push({
+          id: 2,
+          question: "Based on your insurance coverage, which services are most important to you? (Select all that apply)",
+          type: "checkbox",
+          options: serviceOptions,
+          key: "importantServices",
+          aiGenerated: true
+        });
+
+        // Add frequency questions for high-coverage services
+        coveredServices.forEach((service, index) => {
+          const coverage = extractedData.coverage[service];
+          if (coverage.percentage >= 80) {
+            baseQuestions.push({
+              id: baseQuestions.length + 1,
+              question: `How often would you like ${serviceDisplayNames[service] || service} appointments?`,
+              type: "radio",
+              options: [
+                "As recommended by insurance",
+                "More frequently than recommended",
+                "Less frequently",
+                "Only when needed"
+              ],
+              key: `${service}Frequency`,
+              aiGenerated: true
+            });
+          }
+        });
+      }
+    }
+
+    // Add remaining standard questions
+    baseQuestions.push(
+      {
+        id: baseQuestions.length + 1,
+        question: "Do you have any current health concerns or conditions?",
+        type: "textarea",
+        placeholder: "Please describe any current health issues, chronic conditions, or specific areas of concern...",
+        key: "healthConcerns",
+        aiGenerated: false
+      },
+      {
+        id: baseQuestions.length + 2,
+        question: "How far are you willing to travel for appointments?",
+        type: "slider",
+        min: 5,
+        max: 50,
+        labels: ["5 km", "15 km", "30 km", "50+ km"],
+        key: "travelDistance",
+        aiGenerated: false
+      },
+      {
+        id: baseQuestions.length + 3,
+        question: "Do you have a preference for provider gender?",
+        type: "radio",
+        options: [
+          "Female providers preferred",
+          "Male providers preferred",
+          "No preference"
+        ],
+        key: "providerGender",
+        aiGenerated: false
+      },
+      {
+        id: baseQuestions.length + 4,
+        question: "Are there any language preferences for your healthcare providers?",
+        type: "radio",
+        options: [
+          "English only",
+          "English and French",
+          "English and Mandarin",
+          "English and Spanish",
+          "No preference"
+        ],
+        key: "languagePreference",
+        aiGenerated: false
+      }
+    );
+
+    return baseQuestions;
   }
 }
