@@ -52,9 +52,23 @@ export class DatabaseService {
       let query = this.client.from(table);
 
       if (options.select) query = query.select(options.select);
-      if (options.filter) query = query.filter(...options.filter);
+      if (options.filter) {
+        if (Array.isArray(options.filter) && options.filter.length === 3) {
+          const [column, operator, value] = options.filter;
+          query = query.filter(column, operator, value);
+        }
+      }
       if (options.order) query = query.order(options.order.column, { ascending: options.order.ascending });
       if (options.limit) query = query.limit(options.limit);
+      if (options.delete) {
+        // Handle delete operations
+        if (options.filter) {
+          const [column, operator, value] = options.filter;
+          query = query.delete().filter(column, operator, value);
+        } else {
+          query = query.delete();
+        }
+      }
 
       const { data, error } = await query;
       return { data, error };

@@ -1,5 +1,6 @@
 import { AppointmentService } from '../services/AppointmentService.js';
 import { SchedulingService } from '../services/SchedulingService.js';
+import { userPreferencesService } from '../services/UserPreferencesService.js';
 
 /**
  * Handles calendar display and appointment management
@@ -9,11 +10,33 @@ export class CalendarController {
     this.appointmentService = new AppointmentService();
     this.schedulingService = new SchedulingService();
     this.appointments = [];
+    this.generatedSchedule = null;
   }
 
   async initialize() {
     this.setupCalendarHandlers();
     await this.loadAppointments();
+    await this.loadPreviousSchedule();
+  }
+
+  /**
+   * Load previously generated schedule
+   */
+  async loadPreviousSchedule() {
+    try {
+      const savedData = await userPreferencesService.getPreferences(
+        userPreferencesService.steps.SCHEDULE
+      );
+      
+      if (savedData && savedData.preferences && savedData.preferences.schedule) {
+        console.log('Loading previous schedule');
+        this.generatedSchedule = savedData.preferences.schedule;
+        this.appointments = this.generatedSchedule;
+        this.renderCalendar();
+      }
+    } catch (error) {
+      console.error('Failed to load previous schedule:', error);
+    }
   }
 
   setupCalendarHandlers() {
@@ -34,12 +57,44 @@ export class CalendarController {
     }
   }
 
-  generateSchedule(userAnswers) {
+  async generateSchedule(userAnswers) {
     try {
       this.appointments = this.schedulingService.generateSchedule(userAnswers);
+      this.generatedSchedule = this.appointments;
+      
+      // Save the generated schedule
+      await this.saveSchedule(userAnswers);
+      
       this.renderCalendar();
     } catch (error) {
       console.error('Failed to generate schedule:', error);
+    }
+  }
+
+  /**
+   * Save generated schedule to user preferences
+   */
+  async saveSchedule(userAnswers = null) {
+    try {
+      const scheduleData = {
+        schedule: this.generatedSchedule,
+        userAnswers: userAnswers,
+        generatedAt: new Date().toISOString(),
+        appointmentCount: this.generatedSchedule ? this.generatedSchedule.length : 0
+      };
+
+      const result = await userPreferencesService.savePreferences(
+        userPreferencesService.steps.SCHEDULE,
+        scheduleData
+      );
+
+      if (result.success) {
+        console.log('Schedule saved successfully');
+      } else {
+        console.warn('Failed to save schedule:', result.error);
+      }
+    } catch (error) {
+      console.error('Error saving schedule:', error);
     }
   }
 
@@ -110,7 +165,22 @@ export class CalendarController {
 
   async generateNewSchedule() {
     try {
+      // Get the previous user answers to regenerate with same preferences
+      const questionnaireData = await userPreferencesService.getPreferences(
+        userPreferencesService.steps.QUESTIONNAIRE
+      );
+      
+      let userAnswers = {};
+      if (questionnaireData && questionnaireData.preferences && questionnaireData.preferences.answers) {
+        userAnswers = questionnaireData.preferences.answers;
+      }
+
       this.appointments = await this.schedulingService.regenerateSchedule(this.appointments);
+      this.generatedSchedule = this.appointments;
+      
+      // Save the new schedule
+      await this.saveSchedule(userAnswers);
+      
       this.renderCalendar();
       alert('New schedule generated based on your preferences!');
     } catch (error) {

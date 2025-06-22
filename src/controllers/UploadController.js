@@ -1,5 +1,6 @@
 import { FileUploadService } from '../services/FileUploadService.js';
 import { InsuranceService } from '../services/InsuranceService.js';
+import { userPreferencesService } from '../services/UserPreferencesService.js';
 
 /**
  * Handles insurance document upload and processing
@@ -10,10 +11,35 @@ export class UploadController {
     this.insuranceService = new InsuranceService();
     this.eventListeners = new Map();
     this.isDemoMode = false; // Add flag to track demo mode
+    this.extractedData = null; // Store extracted data
   }
 
   async initialize() {
     this.setupUploadHandlers();
+    await this.loadPreviousData();
+  }
+
+  /**
+   * Load previously saved upload data
+   */
+  async loadPreviousData() {
+    try {
+      const savedData = await userPreferencesService.getPreferences(
+        userPreferencesService.steps.UPLOAD
+      );
+      
+      if (savedData && savedData.preferences) {
+        console.log('Loading previous upload data');
+        this.extractedData = savedData.preferences.extractedData;
+        
+        // If we have previous data, show the results
+        if (this.extractedData) {
+          this.showResults(this.extractedData);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load previous upload data:', error);
+    }
   }
 
   setupUploadHandlers() {
@@ -54,7 +80,8 @@ export class UploadController {
     const continueBtn = document.getElementById('continue-btn');
     if (continueBtn) {
       continueBtn.removeAttribute('onclick');
-      continueBtn.addEventListener('click', () => {
+      continueBtn.addEventListener('click', async () => {
+        await this.saveUploadData();
         this.emit('uploadComplete');
       });
     }
@@ -100,6 +127,10 @@ export class UploadController {
 
       // Process with insurance service
       const extractedData = await this.insuranceService.processDocument(file);
+      this.extractedData = extractedData;
+      
+      // Save the upload data
+      await this.saveUploadData(file.name, file.type, file.size);
       
       // Show results
       this.showResults(extractedData);
@@ -120,12 +151,48 @@ export class UploadController {
     this.showProcessing();
     
     // Simulate processing delay
-    setTimeout(() => {
+    setTimeout(async () => {
       const demoData = this.insuranceService.getDemoData();
+      this.extractedData = demoData;
+      
+      // Save the demo data
+      await this.saveUploadData('demo-policy.pdf', 'application/pdf', 0, true);
+      
       this.showResults(demoData);
       // Reset demo mode after showing results
       this.isDemoMode = false;
     }, 2000);
+  }
+
+  /**
+   * Save upload data to user preferences
+   */
+  async saveUploadData(fileName = null, fileType = null, fileSize = null, isDemo = false) {
+    try {
+      const uploadData = {
+        extractedData: this.extractedData,
+        fileInfo: fileName ? {
+          name: fileName,
+          type: fileType,
+          size: fileSize,
+          isDemo: isDemo
+        } : null,
+        completedAt: new Date().toISOString()
+      };
+
+      const result = await userPreferencesService.savePreferences(
+        userPreferencesService.steps.UPLOAD,
+        uploadData
+      );
+
+      if (result.success) {
+        console.log('Upload data saved successfully');
+      } else {
+        console.warn('Failed to save upload data:', result.error);
+      }
+    } catch (error) {
+      console.error('Error saving upload data:', error);
+    }
   }
 
   showProcessing() {

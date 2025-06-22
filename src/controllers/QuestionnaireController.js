@@ -1,4 +1,5 @@
 import { QuestionnaireService } from '../services/QuestionnaireService.js';
+import { userPreferencesService } from '../services/UserPreferencesService.js';
 
 /**
  * Handles the health preferences questionnaire
@@ -12,6 +13,31 @@ export class QuestionnaireController {
 
   async initialize() {
     this.setupQuestionnaireHandlers();
+    await this.loadPreviousAnswers();
+  }
+
+  /**
+   * Load previously saved questionnaire answers
+   */
+  async loadPreviousAnswers() {
+    try {
+      const savedData = await userPreferencesService.getPreferences(
+        userPreferencesService.steps.QUESTIONNAIRE
+      );
+      
+      if (savedData && savedData.preferences && savedData.preferences.answers) {
+        console.log('Loading previous questionnaire answers');
+        this.userAnswers = savedData.preferences.answers;
+        this.currentQuestionIndex = savedData.preferences.currentQuestionIndex || 0;
+        
+        // If questionnaire was completed, show completion state
+        if (savedData.preferences.completed) {
+          console.log('Questionnaire was previously completed');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load previous questionnaire answers:', error);
+    }
   }
 
   setupQuestionnaireHandlers() {
@@ -31,8 +57,12 @@ export class QuestionnaireController {
   }
 
   start() {
-    this.currentQuestionIndex = 0;
-    this.userAnswers = {};
+    // Only reset if we don't have previous answers
+    if (Object.keys(this.userAnswers).length === 0) {
+      this.currentQuestionIndex = 0;
+      this.userAnswers = {};
+    }
+    
     this.displayQuestion();
     this.updateProgress();
   }
@@ -46,7 +76,54 @@ export class QuestionnaireController {
 
     container.innerHTML = this.renderQuestion(question);
     this.setupQuestionHandlers(question);
+    this.restorePreviousAnswers(question);
     this.updateNavigationButtons();
+  }
+
+  /**
+   * Restore previous answers for the current question
+   */
+  restorePreviousAnswers(question) {
+    const container = document.getElementById('questionContainer');
+    const savedAnswer = this.userAnswers[question.key];
+    
+    if (!savedAnswer) return;
+
+    // Restore radio button answers
+    if (question.type === 'radio') {
+      const radioInput = container.querySelector(`input[value="${savedAnswer}"]`);
+      if (radioInput) {
+        radioInput.checked = true;
+      }
+    }
+
+    // Restore checkbox answers
+    if (question.type === 'checkbox' && Array.isArray(savedAnswer)) {
+      savedAnswer.forEach(value => {
+        const checkboxInput = container.querySelector(`input[value="${value}"]`);
+        if (checkboxInput) {
+          checkboxInput.checked = true;
+        }
+      });
+    }
+
+    // Restore slider answers
+    if (question.type === 'slider') {
+      const sliderInput = container.querySelector('input[type="range"]');
+      if (sliderInput) {
+        sliderInput.value = savedAnswer;
+        // Trigger input event to update display
+        sliderInput.dispatchEvent(new Event('input'));
+      }
+    }
+
+    // Restore textarea answers
+    if (question.type === 'textarea') {
+      const textareaInput = container.querySelector('textarea');
+      if (textareaInput) {
+        textareaInput.value = savedAnswer;
+      }
+    }
   }
 
   renderQuestion(question) {
@@ -124,15 +201,16 @@ export class QuestionnaireController {
     // Radio buttons
     const radioInputs = container.querySelectorAll('input[type="radio"]');
     radioInputs.forEach(input => {
-      input.addEventListener('change', (e) => {
+      input.addEventListener('change', async (e) => {
         this.userAnswers[e.target.dataset.key] = e.target.value;
+        await this.saveProgress();
       });
     });
 
     // Checkboxes
     const checkboxInputs = container.querySelectorAll('input[type="checkbox"]');
     checkboxInputs.forEach(input => {
-      input.addEventListener('change', (e) => {
+      input.addEventListener('change', async (e) => {
         const key = e.target.dataset.key;
         if (!this.userAnswers[key]) this.userAnswers[key] = [];
         
@@ -141,13 +219,14 @@ export class QuestionnaireController {
         } else {
           this.userAnswers[key] = this.userAnswers[key].filter(item => item !== e.target.value);
         }
+        await this.saveProgress();
       });
     });
 
     // Sliders
     const sliderInputs = container.querySelectorAll('input[type="range"]');
     sliderInputs.forEach(input => {
-      input.addEventListener('input', (e) => {
+      input.addEventListener('input', async (e) => {
         const key = e.target.dataset.key;
         const value = e.target.value;
         const index = Math.min(parseInt(value) - question.min, question.labels.length - 1);
@@ -158,33 +237,58 @@ export class QuestionnaireController {
         if (valueDisplay) {
           valueDisplay.textContent = label;
         }
+        await this.saveProgress();
       });
     });
 
     // Textarea
     const textareaInputs = container.querySelectorAll('textarea');
     textareaInputs.forEach(input => {
-      input.addEventListener('change', (e) => {
+      input.addEventListener('change', async (e) => {
         this.userAnswers[e.target.dataset.key] = e.target.value;
+        await this.saveProgress();
       });
     });
   }
 
-  nextQuestion() {
+  /**
+   * Save current progress to database
+   */
+  async saveProgress() {
+    try {
+      const progressData = {
+        answers: this.userAnswers,
+        currentQuestionIndex: this.currentQuestionIndex,
+        completed: false,
+        lastUpdated: new Date().toISOString()
+      };
+
+      await userPreferencesService.savePreferences(
+        userPreferencesService.steps.QUESTIONNAIRE,
+        progressData
+      );
+    } catch (error) {
+      console.error('Failed to save questionnaire progress:', error);
+    }
+  }
+
+  async nextQuestion() {
     const questions = this.questionnaireService.getQuestions();
     
     if (this.currentQuestionIndex < questions.length - 1) {
       this.currentQuestionIndex++;
+      await this.saveProgress();
       this.displayQuestion();
       this.updateProgress();
     } else {
-      this.completeQuestionnaire();
+      await this.completeQuestionnaire();
     }
   }
 
-  previousQuestion() {
+  async previousQuestion() {
     if (this.currentQuestionIndex > 0) {
       this.currentQuestionIndex--;
+      await this.saveProgress();
       this.displayQuestion();
       this.updateProgress();
     }
@@ -216,8 +320,28 @@ export class QuestionnaireController {
     }
   }
 
-  completeQuestionnaire() {
-    this.emit('questionnaireComplete', this.userAnswers);
+  async completeQuestionnaire() {
+    try {
+      // Save final completed state
+      const completedData = {
+        answers: this.userAnswers,
+        currentQuestionIndex: this.currentQuestionIndex,
+        completed: true,
+        completedAt: new Date().toISOString()
+      };
+
+      await userPreferencesService.savePreferences(
+        userPreferencesService.steps.QUESTIONNAIRE,
+        completedData
+      );
+
+      console.log('Questionnaire completed and saved');
+      this.emit('questionnaireComplete', this.userAnswers);
+    } catch (error) {
+      console.error('Failed to save completed questionnaire:', error);
+      // Still emit the event even if save failed
+      this.emit('questionnaireComplete', this.userAnswers);
+    }
   }
 
   // Event system

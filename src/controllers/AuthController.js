@@ -1,4 +1,5 @@
 import { authService } from '../services/AuthService.js';
+import { userPreferencesService } from '../services/UserPreferencesService.js';
 
 /**
  * Handles authentication UI and user interactions
@@ -73,6 +74,10 @@ export class AuthController {
   async handleSignOut() {
     try {
       this.showLoading('Signing out...');
+      
+      // Clear user preferences before signing out
+      await userPreferencesService.clearAllPreferences();
+      
       await authService.signOut();
     } catch (error) {
       console.error('Sign out failed:', error);
@@ -120,7 +125,7 @@ export class AuthController {
     this.emit('authenticationComplete', user);
   }
 
-  handleSignedOut() {
+  async handleSignedOut() {
     console.log('User signed out');
     
     // Clear any cached data
