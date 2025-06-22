@@ -2,14 +2,14 @@ import { QuestionnaireService } from '../services/QuestionnaireService.js';
 import { userPreferencesService } from '../services/UserPreferencesService.js';
 
 /**
- * Handles the health preferences questionnaire
+ * Handles the health preferences questionnaire as a single page form
  */
 export class QuestionnaireController {
   constructor() {
     this.questionnaireService = new QuestionnaireService();
-    this.currentQuestionIndex = 0;
     this.userAnswers = {};
-    this.dynamicQuestions = null; // Store dynamic questions from AI analysis
+    this.dynamicQuestions = null;
+    this.hasExistingPreferences = false;
   }
 
   async initialize() {
@@ -29,32 +29,25 @@ export class QuestionnaireController {
       if (savedData && savedData.preferences && savedData.preferences.answers) {
         console.log('Loading previous questionnaire answers');
         this.userAnswers = savedData.preferences.answers;
-        this.currentQuestionIndex = savedData.preferences.currentQuestionIndex || 0;
         this.dynamicQuestions = savedData.preferences.dynamicQuestions;
+        this.hasExistingPreferences = true;
         
-        // If questionnaire was completed, show completion state
-        if (savedData.preferences.completed) {
-          console.log('Questionnaire was previously completed');
-        }
+        console.log('Found existing preferences, will show update mode');
+      } else {
+        console.log('No existing preferences found, will show save mode');
+        this.hasExistingPreferences = false;
       }
     } catch (error) {
       console.error('Failed to load previous questionnaire answers:', error);
+      this.hasExistingPreferences = false;
     }
   }
 
   setupQuestionnaireHandlers() {
-    // Navigation buttons
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-
-    if (prevBtn) {
-      prevBtn.removeAttribute('onclick');
-      prevBtn.addEventListener('click', this.previousQuestion.bind(this));
-    }
-
-    if (nextBtn) {
-      nextBtn.removeAttribute('onclick');
-      nextBtn.addEventListener('click', this.nextQuestion.bind(this));
+    // Form submission handler
+    const form = document.getElementById('preferences-form');
+    if (form) {
+      form.addEventListener('submit', this.handleFormSubmit.bind(this));
     }
   }
 
@@ -68,14 +61,7 @@ export class QuestionnaireController {
       this.dynamicQuestions = dynamicQuestions;
     }
 
-    // Only reset if we don't have previous answers
-    if (Object.keys(this.userAnswers).length === 0) {
-      this.currentQuestionIndex = 0;
-      this.userAnswers = {};
-    }
-    
-    this.displayQuestion();
-    this.updateProgress();
+    this.displayForm();
   }
 
   /**
@@ -85,75 +71,137 @@ export class QuestionnaireController {
     return this.dynamicQuestions || this.questionnaireService.getQuestions();
   }
 
-  displayQuestion() {
-    const questions = this.getQuestions();
-    const question = questions[this.currentQuestionIndex];
+  /**
+   * Display the complete form with all questions
+   */
+  displayForm() {
     const container = document.getElementById('questionContainer');
-    
-    if (!container || !question) return;
+    if (!container) return;
 
-    container.innerHTML = this.renderQuestion(question);
-    this.setupQuestionHandlers(question);
-    this.restorePreviousAnswers(question);
-    this.updateNavigationButtons();
+    const questions = this.getQuestions();
+    
+    // Create form HTML
+    let formHtml = `
+      <form id="preferences-form" class="preferences-form">
+        <div class="form-sections">
+    `;
+
+    // Group questions into sections for better organization
+    const sections = this.groupQuestionsIntoSections(questions);
+    
+    sections.forEach(section => {
+      formHtml += `
+        <div class="form-section">
+          <h3 class="section-title">${section.title}</h3>
+          <div class="section-questions">
+      `;
+      
+      section.questions.forEach(question => {
+        formHtml += this.renderQuestion(question);
+      });
+      
+      formHtml += `
+          </div>
+        </div>
+      `;
+    });
+
+    // Add form actions
+    const buttonText = this.hasExistingPreferences ? 'Update Preferences' : 'Save Preferences';
+    const buttonClass = this.hasExistingPreferences ? 'btn--secondary' : 'btn--primary';
+    
+    formHtml += `
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn ${buttonClass} btn--lg">
+            ${buttonText}
+          </button>
+          ${this.hasExistingPreferences ? '<button type="button" class="btn btn--outline" id="reset-preferences">Reset to Defaults</button>' : ''}
+        </div>
+      </form>
+    `;
+
+    container.innerHTML = formHtml;
+    
+    // Set up form handlers and restore values
+    this.setupFormHandlers();
+    this.restoreFormValues();
+    
+    // Update the page title and remove progress indicators
+    this.updatePageHeader();
   }
 
   /**
-   * Restore previous answers for the current question
+   * Group questions into logical sections
    */
-  restorePreviousAnswers(question) {
-    const container = document.getElementById('questionContainer');
-    const savedAnswer = this.userAnswers[question.key];
-    
-    if (!savedAnswer) return;
-
-    // Restore radio button answers
-    if (question.type === 'radio') {
-      const radioInput = container.querySelector(`input[value="${savedAnswer}"]`);
-      if (radioInput) {
-        radioInput.checked = true;
+  groupQuestionsIntoSections(questions) {
+    const sections = [
+      {
+        title: 'Appointment Preferences',
+        questions: questions.filter(q => 
+          q.key === 'timePreference' || 
+          q.key === 'travelDistance' ||
+          q.key === 'providerGender' ||
+          q.key === 'languagePreference'
+        )
+      },
+      {
+        title: 'Healthcare Services',
+        questions: questions.filter(q => 
+          q.key === 'importantServices' ||
+          q.key.includes('Frequency') ||
+          q.key === 'alternativeTherapies'
+        )
+      },
+      {
+        title: 'Health Information',
+        questions: questions.filter(q => 
+          q.key === 'healthConcerns' ||
+          q.key === 'preventiveCareFrequency'
+        )
       }
+    ];
+
+    // Add any remaining questions to the first section
+    const assignedQuestions = sections.flatMap(s => s.questions);
+    const remainingQuestions = questions.filter(q => !assignedQuestions.includes(q));
+    if (remainingQuestions.length > 0) {
+      sections[0].questions.push(...remainingQuestions);
     }
 
-    // Restore checkbox answers
-    if (question.type === 'checkbox' && Array.isArray(savedAnswer)) {
-      savedAnswer.forEach(value => {
-        const checkboxInput = container.querySelector(`input[value="${value}"]`);
-        if (checkboxInput) {
-          checkboxInput.checked = true;
-        }
-      });
-    }
+    return sections.filter(section => section.questions.length > 0);
+  }
 
-    // Restore slider answers
-    if (question.type === 'slider') {
-      const sliderInput = container.querySelector('input[type="range"]');
-      if (sliderInput) {
-        sliderInput.value = savedAnswer;
-        // Trigger input event to update display
-        sliderInput.dispatchEvent(new Event('input'));
-      }
-    }
-
-    // Restore textarea answers
-    if (question.type === 'textarea') {
-      const textareaInput = container.querySelector('textarea');
-      if (textareaInput) {
-        textareaInput.value = savedAnswer;
-      }
+  /**
+   * Update page header to reflect single form mode
+   */
+  updatePageHeader() {
+    const progressHeader = document.querySelector('.progress-header');
+    if (progressHeader) {
+      const title = this.hasExistingPreferences ? 'Update Your Health Preferences' : 'Set Your Health Preferences';
+      const subtitle = this.hasExistingPreferences ? 
+        'Review and update your healthcare preferences below.' :
+        'Tell us about your healthcare preferences to create your personalized schedule.';
+      
+      progressHeader.innerHTML = `
+        <h2>${title}</h2>
+        <p class="text-secondary">${subtitle}</p>
+      `;
     }
   }
 
+  /**
+   * Render a single question
+   */
   renderQuestion(question) {
-    let html = `<div class="question">
-      <h3>${question.question}</h3>`;
-    
-    // Add AI-generated indicator if this is a dynamic question
-    if (this.dynamicQuestions && question.aiGenerated) {
-      html += `<p class="ai-indicator">🤖 This question was customized based on your insurance coverage</p>`;
-    }
-    
-    html += `<div class="question-options">`;
+    let html = `
+      <div class="question-item" data-question-key="${question.key}">
+        <label class="question-label">
+          ${question.question}
+          ${question.aiGenerated ? '<span class="ai-indicator">🤖 AI-customized</span>' : ''}
+        </label>
+        <div class="question-input">
+    `;
     
     switch (question.type) {
       case 'radio':
@@ -170,30 +218,34 @@ export class QuestionnaireController {
         break;
     }
     
-    html += '</div></div>';
+    html += `
+        </div>
+      </div>
+    `;
+    
     return html;
   }
 
   renderRadioOptions(question) {
     return question.options.map(option => `
-      <label class="checkbox-item">
-        <input type="radio" name="question_${question.id}" value="${option}" 
-               data-key="${question.key}">
-        <span>${option}</span>
+      <label class="radio-option">
+        <input type="radio" name="${question.key}" value="${option}" data-key="${question.key}">
+        <span class="radio-label">${option}</span>
       </label>
     `).join('');
   }
 
   renderCheckboxOptions(question) {
-    let html = '<div class="checkbox-group">';
-    html += question.options.map(option => `
-      <label class="checkbox-item">
-        <input type="checkbox" value="${option}" data-key="${question.key}">
-        <span>${option}</span>
-      </label>
-    `).join('');
-    html += '</div>';
-    return html;
+    return `
+      <div class="checkbox-group">
+        ${question.options.map(option => `
+          <label class="checkbox-option">
+            <input type="checkbox" name="${question.key}" value="${option}" data-key="${question.key}">
+            <span class="checkbox-label">${option}</span>
+          </label>
+        `).join('')}
+      </div>
+    `;
   }
 
   renderSliderOption(question) {
@@ -203,7 +255,8 @@ export class QuestionnaireController {
           <span>${question.labels[0]}</span>
           <span>${question.labels[question.labels.length - 1]}</span>
         </div>
-        <input type="range" class="slider" min="${question.min}" max="${question.max}" 
+        <input type="range" class="slider" name="${question.key}" 
+               min="${question.min}" max="${question.max}" 
                value="${question.min}" data-key="${question.key}">
         <div class="slider-value" id="slider-value-${question.id}">
           ${question.labels[0]}
@@ -214,27 +267,30 @@ export class QuestionnaireController {
 
   renderTextareaOption(question) {
     return `
-      <textarea class="form-control" rows="4" placeholder="${question.placeholder}"
-                data-key="${question.key}"></textarea>
+      <textarea class="form-control" name="${question.key}" rows="4" 
+                placeholder="${question.placeholder}" data-key="${question.key}"></textarea>
     `;
   }
 
-  setupQuestionHandlers(question) {
-    const container = document.getElementById('questionContainer');
-    
-    // Radio buttons
-    const radioInputs = container.querySelectorAll('input[type="radio"]');
+  /**
+   * Set up form event handlers
+   */
+  setupFormHandlers() {
+    const form = document.getElementById('preferences-form');
+    if (!form) return;
+
+    // Radio button handlers
+    const radioInputs = form.querySelectorAll('input[type="radio"]');
     radioInputs.forEach(input => {
-      input.addEventListener('change', async (e) => {
+      input.addEventListener('change', (e) => {
         this.userAnswers[e.target.dataset.key] = e.target.value;
-        await this.saveProgress();
       });
     });
 
-    // Checkboxes
-    const checkboxInputs = container.querySelectorAll('input[type="checkbox"]');
+    // Checkbox handlers
+    const checkboxInputs = form.querySelectorAll('input[type="checkbox"]');
     checkboxInputs.forEach(input => {
-      input.addEventListener('change', async (e) => {
+      input.addEventListener('change', (e) => {
         const key = e.target.dataset.key;
         if (!this.userAnswers[key]) this.userAnswers[key] = [];
         
@@ -243,14 +299,15 @@ export class QuestionnaireController {
         } else {
           this.userAnswers[key] = this.userAnswers[key].filter(item => item !== e.target.value);
         }
-        await this.saveProgress();
       });
     });
 
-    // Sliders
-    const sliderInputs = container.querySelectorAll('input[type="range"]');
+    // Slider handlers
+    const sliderInputs = form.querySelectorAll('input[type="range"]');
     sliderInputs.forEach(input => {
-      input.addEventListener('input', async (e) => {
+      const question = this.getQuestions().find(q => q.key === input.dataset.key);
+      
+      input.addEventListener('input', (e) => {
         const key = e.target.dataset.key;
         const value = e.target.value;
         const index = Math.min(parseInt(value) - question.min, question.labels.length - 1);
@@ -261,113 +318,208 @@ export class QuestionnaireController {
         if (valueDisplay) {
           valueDisplay.textContent = label;
         }
-        await this.saveProgress();
       });
     });
 
-    // Textarea
-    const textareaInputs = container.querySelectorAll('textarea');
+    // Textarea handlers
+    const textareaInputs = form.querySelectorAll('textarea');
     textareaInputs.forEach(input => {
-      input.addEventListener('change', async (e) => {
+      input.addEventListener('change', (e) => {
         this.userAnswers[e.target.dataset.key] = e.target.value;
-        await this.saveProgress();
       });
+    });
+
+    // Reset button handler
+    const resetBtn = document.getElementById('reset-preferences');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', this.handleReset.bind(this));
+    }
+  }
+
+  /**
+   * Restore form values from saved preferences
+   */
+  restoreFormValues() {
+    if (!this.hasExistingPreferences || Object.keys(this.userAnswers).length === 0) {
+      return;
+    }
+
+    const form = document.getElementById('preferences-form');
+    if (!form) return;
+
+    Object.keys(this.userAnswers).forEach(key => {
+      const value = this.userAnswers[key];
+      
+      // Handle radio buttons
+      const radioInput = form.querySelector(`input[type="radio"][data-key="${key}"][value="${value}"]`);
+      if (radioInput) {
+        radioInput.checked = true;
+      }
+
+      // Handle checkboxes
+      if (Array.isArray(value)) {
+        value.forEach(val => {
+          const checkboxInput = form.querySelector(`input[type="checkbox"][data-key="${key}"][value="${val}"]`);
+          if (checkboxInput) {
+            checkboxInput.checked = true;
+          }
+        });
+      }
+
+      // Handle sliders
+      const sliderInput = form.querySelector(`input[type="range"][data-key="${key}"]`);
+      if (sliderInput) {
+        sliderInput.value = value;
+        // Trigger input event to update display
+        sliderInput.dispatchEvent(new Event('input'));
+      }
+
+      // Handle textareas
+      const textareaInput = form.querySelector(`textarea[data-key="${key}"]`);
+      if (textareaInput) {
+        textareaInput.value = value;
+      }
     });
   }
 
   /**
-   * Save current progress to database
+   * Handle form submission
    */
-  async saveProgress() {
+  async handleFormSubmit(e) {
+    e.preventDefault();
+    
     try {
-      const progressData = {
-        answers: this.userAnswers,
-        currentQuestionIndex: this.currentQuestionIndex,
-        dynamicQuestions: this.dynamicQuestions,
-        completed: false,
-        lastUpdated: new Date().toISOString()
-      };
-
-      await userPreferencesService.savePreferences(
-        userPreferencesService.steps.QUESTIONNAIRE,
-        progressData
-      );
+      // Save preferences
+      const result = await this.savePreferences();
+      
+      if (result.success) {
+        const message = this.hasExistingPreferences ? 
+          'Preferences updated successfully!' : 
+          'Preferences saved successfully!';
+        
+        // Show success message
+        this.showSuccessMessage(message);
+        
+        // Update state
+        this.hasExistingPreferences = true;
+        
+        // Update button text
+        const submitBtn = document.querySelector('#preferences-form button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.textContent = 'Update Preferences';
+          submitBtn.className = submitBtn.className.replace('btn--primary', 'btn--secondary');
+        }
+        
+        // Emit completion event
+        this.emit('questionnaireComplete', this.userAnswers);
+      } else {
+        this.showErrorMessage('Failed to save preferences. Please try again.');
+      }
     } catch (error) {
-      console.error('Failed to save questionnaire progress:', error);
+      console.error('Error saving preferences:', error);
+      this.showErrorMessage('An error occurred while saving preferences.');
     }
   }
 
-  async nextQuestion() {
-    const questions = this.getQuestions();
-    
-    if (this.currentQuestionIndex < questions.length - 1) {
-      this.currentQuestionIndex++;
-      await this.saveProgress();
-      this.displayQuestion();
-      this.updateProgress();
-    } else {
-      await this.completeQuestionnaire();
+  /**
+   * Handle reset to defaults
+   */
+  async handleReset() {
+    if (confirm('Are you sure you want to reset all preferences to defaults? This action cannot be undone.')) {
+      try {
+        // Clear saved preferences
+        await userPreferencesService.deletePreferences(userPreferencesService.steps.QUESTIONNAIRE);
+        
+        // Reset local state
+        this.userAnswers = {};
+        this.hasExistingPreferences = false;
+        
+        // Reload the form
+        this.displayForm();
+        
+        this.showSuccessMessage('Preferences reset to defaults.');
+      } catch (error) {
+        console.error('Error resetting preferences:', error);
+        this.showErrorMessage('Failed to reset preferences.');
+      }
     }
   }
 
-  async previousQuestion() {
-    if (this.currentQuestionIndex > 0) {
-      this.currentQuestionIndex--;
-      await this.saveProgress();
-      this.displayQuestion();
-      this.updateProgress();
-    }
-  }
-
-  updateProgress() {
-    const questions = this.getQuestions();
-    const progress = ((this.currentQuestionIndex + 1) / questions.length) * 100;
-    
-    const progressFill = document.getElementById('progressFill');
-    const currentQuestion = document.getElementById('currentQuestion');
-    const totalQuestions = document.getElementById('totalQuestions');
-    
-    if (progressFill) progressFill.style.width = progress + '%';
-    if (currentQuestion) currentQuestion.textContent = this.currentQuestionIndex + 1;
-    if (totalQuestions) totalQuestions.textContent = questions.length;
-  }
-
-  updateNavigationButtons() {
-    const questions = this.getQuestions();
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    
-    if (prevBtn) prevBtn.disabled = this.currentQuestionIndex === 0;
-    if (nextBtn) {
-      nextBtn.textContent = this.currentQuestionIndex === questions.length - 1 
-        ? 'Generate My Schedule' 
-        : 'Next';
-    }
-  }
-
-  async completeQuestionnaire() {
+  /**
+   * Save current preferences
+   */
+  async savePreferences() {
     try {
-      // Save final completed state
-      const completedData = {
+      const preferencesData = {
         answers: this.userAnswers,
-        currentQuestionIndex: this.currentQuestionIndex,
         dynamicQuestions: this.dynamicQuestions,
         completed: true,
-        completedAt: new Date().toISOString()
+        completedAt: new Date().toISOString(),
+        formMode: true // Flag to indicate this was saved via form mode
       };
 
-      await userPreferencesService.savePreferences(
+      return await userPreferencesService.savePreferences(
         userPreferencesService.steps.QUESTIONNAIRE,
-        completedData
+        preferencesData
       );
-
-      console.log('Questionnaire completed and saved');
-      this.emit('questionnaireComplete', this.userAnswers);
     } catch (error) {
-      console.error('Failed to save completed questionnaire:', error);
-      // Still emit the event even if save failed
-      this.emit('questionnaireComplete', this.userAnswers);
+      console.error('Failed to save preferences:', error);
+      return { success: false, error: error.message };
     }
+  }
+
+  /**
+   * Show success message
+   */
+  showSuccessMessage(message) {
+    // Create and show a temporary success message
+    const messageEl = document.createElement('div');
+    messageEl.className = 'success-message';
+    messageEl.textContent = message;
+    messageEl.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--color-success);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      z-index: 1000;
+      box-shadow: var(--shadow-md);
+    `;
+    
+    document.body.appendChild(messageEl);
+    
+    setTimeout(() => {
+      messageEl.remove();
+    }, 3000);
+  }
+
+  /**
+   * Show error message
+   */
+  showErrorMessage(message) {
+    // Create and show a temporary error message
+    const messageEl = document.createElement('div');
+    messageEl.className = 'error-message';
+    messageEl.textContent = message;
+    messageEl.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--color-error);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      z-index: 1000;
+      box-shadow: var(--shadow-md);
+    `;
+    
+    document.body.appendChild(messageEl);
+    
+    setTimeout(() => {
+      messageEl.remove();
+    }, 5000);
   }
 
   // Event system
