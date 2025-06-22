@@ -191,7 +191,7 @@ export class UserPreferencesService {
   }
 
   /**
-   * Call the edge function for user preferences
+   * Call the edge function for user preferences with proper authentication
    * @param {string} method - HTTP method
    * @param {Object} body - Request body
    * @param {string} queryParams - Query parameters
@@ -203,9 +203,10 @@ export class UserPreferencesService {
       throw new Error('Supabase client not available');
     }
 
-    const token = authService.getAccessToken();
+    // Get a valid access token (with automatic refresh if needed)
+    const token = await authService.getValidAccessToken();
     if (!token) {
-      throw new Error('No access token available');
+      throw new Error('No valid access token available');
     }
 
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-preferences${queryParams}`;
@@ -226,6 +227,15 @@ export class UserPreferencesService {
     
     if (!response.ok) {
       const errorText = await response.text();
+      
+      // Handle authentication errors specifically
+      if (response.status === 401) {
+        console.error('Authentication failed, clearing session');
+        await authService.clearSession();
+        authService.emit('signedOut');
+        throw new Error('Authentication expired. Please sign in again.');
+      }
+      
       throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 

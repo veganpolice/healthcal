@@ -44,11 +44,7 @@ export class QuestionnaireController {
   }
 
   setupQuestionnaireHandlers() {
-    // Form submission handler
-    const form = document.getElementById('preferences-form');
-    if (form) {
-      form.addEventListener('submit', this.handleFormSubmit.bind(this));
-    }
+    // Form submission handler will be set up when form is created
   }
 
   /**
@@ -279,11 +275,15 @@ export class QuestionnaireController {
     const form = document.getElementById('preferences-form');
     if (!form) return;
 
+    // Form submission handler
+    form.addEventListener('submit', this.handleFormSubmit.bind(this));
+
     // Radio button handlers
     const radioInputs = form.querySelectorAll('input[type="radio"]');
     radioInputs.forEach(input => {
       input.addEventListener('change', (e) => {
         this.userAnswers[e.target.dataset.key] = e.target.value;
+        console.log('Radio changed:', e.target.dataset.key, '=', e.target.value);
       });
     });
 
@@ -299,6 +299,7 @@ export class QuestionnaireController {
         } else {
           this.userAnswers[key] = this.userAnswers[key].filter(item => item !== e.target.value);
         }
+        console.log('Checkbox changed:', key, '=', this.userAnswers[key]);
       });
     });
 
@@ -318,6 +319,7 @@ export class QuestionnaireController {
         if (valueDisplay) {
           valueDisplay.textContent = label;
         }
+        console.log('Slider changed:', key, '=', value);
       });
     });
 
@@ -326,6 +328,7 @@ export class QuestionnaireController {
     textareaInputs.forEach(input => {
       input.addEventListener('change', (e) => {
         this.userAnswers[e.target.dataset.key] = e.target.value;
+        console.log('Textarea changed:', e.target.dataset.key, '=', e.target.value);
       });
     });
 
@@ -341,19 +344,24 @@ export class QuestionnaireController {
    */
   restoreFormValues() {
     if (!this.hasExistingPreferences || Object.keys(this.userAnswers).length === 0) {
+      console.log('No existing preferences to restore');
       return;
     }
+
+    console.log('Restoring form values:', this.userAnswers);
 
     const form = document.getElementById('preferences-form');
     if (!form) return;
 
     Object.keys(this.userAnswers).forEach(key => {
       const value = this.userAnswers[key];
+      console.log('Restoring:', key, '=', value);
       
       // Handle radio buttons
       const radioInput = form.querySelector(`input[type="radio"][data-key="${key}"][value="${value}"]`);
       if (radioInput) {
         radioInput.checked = true;
+        console.log('Restored radio:', key, '=', value);
       }
 
       // Handle checkboxes
@@ -362,6 +370,7 @@ export class QuestionnaireController {
           const checkboxInput = form.querySelector(`input[type="checkbox"][data-key="${key}"][value="${val}"]`);
           if (checkboxInput) {
             checkboxInput.checked = true;
+            console.log('Restored checkbox:', key, '=', val);
           }
         });
       }
@@ -372,12 +381,14 @@ export class QuestionnaireController {
         sliderInput.value = value;
         // Trigger input event to update display
         sliderInput.dispatchEvent(new Event('input'));
+        console.log('Restored slider:', key, '=', value);
       }
 
       // Handle textareas
       const textareaInput = form.querySelector(`textarea[data-key="${key}"]`);
       if (textareaInput) {
         textareaInput.value = value;
+        console.log('Restored textarea:', key, '=', value);
       }
     });
   }
@@ -389,6 +400,8 @@ export class QuestionnaireController {
     e.preventDefault();
     
     try {
+      console.log('Submitting form with answers:', this.userAnswers);
+      
       // Save or update preferences
       const result = await this.savePreferences();
       
@@ -413,7 +426,7 @@ export class QuestionnaireController {
         // Navigate to calendar after successful save/update
         setTimeout(() => {
           this.emit('questionnaireComplete', this.userAnswers);
-        }, 1000);
+        }, 1500);
       } else {
         this.showErrorMessage('Failed to save preferences. Please try again.');
       }

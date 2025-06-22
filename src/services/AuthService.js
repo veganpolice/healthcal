@@ -45,6 +45,10 @@ export class AuthService {
         } else if (event === 'SIGNED_OUT') {
           await this.clearSession();
           this.emit('signedOut');
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          // Update session when token is refreshed
+          await this.setSession(session);
+          console.log('Token refreshed successfully');
         }
       });
 
@@ -167,7 +171,59 @@ export class AuthService {
    * Check if user is authenticated
    */
   isUserAuthenticated() {
-    return this.isAuthenticated;
+    return this.isAuthenticated && this.session && !this.isSessionExpired();
+  }
+
+  /**
+   * Check if current session is expired
+   */
+  isSessionExpired() {
+    if (!this.session || !this.session.expires_at) {
+      return true;
+    }
+    
+    const expiresAt = new Date(this.session.expires_at * 1000);
+    const now = new Date();
+    const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
+    
+    return now.getTime() > (expiresAt.getTime() - bufferTime);
+  }
+
+  /**
+   * Refresh session if needed
+   */
+  async refreshSessionIfNeeded() {
+    if (!this.session || !this.isSessionExpired()) {
+      return this.session;
+    }
+
+    const client = DatabaseService.getClient();
+    if (!client) {
+      throw new Error('Supabase client not available');
+    }
+
+    try {
+      console.log('Refreshing expired session...');
+      const { data, error } = await client.auth.refreshSession(this.session);
+      
+      if (error) {
+        console.error('Session refresh failed:', error);
+        await this.clearSession();
+        this.emit('signedOut');
+        throw error;
+      }
+
+      if (data.session) {
+        await this.setSession(data.session);
+        console.log('Session refreshed successfully');
+        return data.session;
+      }
+    } catch (error) {
+      console.error('Error refreshing session:', error);
+      await this.clearSession();
+      this.emit('signedOut');
+      throw error;
+    }
   }
 
   /**
@@ -184,6 +240,9 @@ export class AuthService {
     }
 
     try {
+      // Ensure session is valid
+      await this.refreshSessionIfNeeded();
+
       const { data, error } = await client
         .from('user_profiles')
         .select('*')
@@ -216,6 +275,9 @@ export class AuthService {
     }
 
     try {
+      // Ensure session is valid
+      await this.refreshSessionIfNeeded();
+
       const { data, error } = await client
         .from('user_profiles')
         .update({
@@ -265,7 +327,23 @@ export class AuthService {
    * Get access token for API calls
    */
   getAccessToken() {
-    return this.session?.access_token || null;
+    if (!this.session || this.isSessionExpired()) {
+      return null;
+    }
+    return this.session.access_token;
+  }
+
+  /**
+   * Get access token with automatic refresh
+   */
+  async getValidAccessToken() {
+    try {
+      await this.refreshSessionIfNeeded();
+      return this.getAccessToken();
+    } catch (error) {
+      console.error('Failed to get valid access token:', error);
+      return null;
+    }
   }
 
   /**
