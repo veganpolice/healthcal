@@ -10,10 +10,69 @@ export class PerplexityService {
     
     // Log API key status for debugging
     if (this.apiKey) {
-      console.log('Perplexity API key configured');
+      console.log('✅ Perplexity API key configured');
     } else {
-      console.warn('Perplexity API key not found. Set VITE_PERPLEXITY_API_KEY in your environment variables.');
+      console.warn('⚠️ Perplexity API key not found. Set VITE_PERPLEXITY_API_KEY in your environment variables.');
     }
+  }
+
+  /**
+   * Extract text from file for analysis
+   * @param {File} file - The uploaded file
+   * @returns {Promise<string>} Extracted text content
+   */
+  async extractTextFromFile(file) {
+    console.log('📄 Extracting text from file:', file.name, file.type);
+    
+    if (file.type === 'text/plain') {
+      console.log('📝 Processing text file directly');
+      try {
+        const text = await this.readFileAsText(file);
+        console.log('✅ Text file read successfully, length:', text.length, 'characters');
+        return text;
+      } catch (error) {
+        console.error('❌ Text file reading failed:', error);
+        throw new Error(`Failed to read text file: ${error.message}`);
+      }
+    } else if (file.type === 'application/pdf') {
+      console.log('📄 Processing PDF file with PDF text extractor');
+      try {
+        const text = await pdfTextExtractor.extractText(file);
+        console.log('✅ PDF text extraction successful, length:', text.length, 'characters');
+        return text;
+      } catch (error) {
+        console.error('❌ PDF text extraction failed:', error);
+        throw new Error(`Failed to extract text from PDF: ${error.message}`);
+      }
+    } else if (file.type.startsWith('image/')) {
+      console.log('🖼️ Processing image file with OCR simulation');
+      try {
+        const text = await pdfTextExtractor.extractTextFromImage(file);
+        console.log('✅ Image OCR simulation completed');
+        return text;
+      } catch (error) {
+        console.error('❌ Image text extraction failed:', error);
+        throw new Error(`Failed to extract text from image: ${error.message}`);
+      }
+    } else {
+      throw new Error(`Unsupported file type: ${file.type}. Please upload a PDF, TXT, or image file.`);
+    }
+  }
+
+  /**
+   * Read file as text
+   * @param {File} file - The file to read
+   * @returns {Promise<string>} File content as text
+   */
+  async readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resolve(e.target.result);
+      };
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
   }
 
   /**
@@ -23,13 +82,13 @@ export class PerplexityService {
    */
   async analyzeInsuranceDocument(documentText) {
     if (!this.apiKey) {
-      console.warn('Perplexity API key not configured. Using fallback analysis.');
+      console.warn('⚠️ Perplexity API key not configured. Using fallback analysis.');
       return this.getFallbackAnalysis();
     }
 
     try {
-      console.log('Sending request to Perplexity AI...');
-      console.log('Document text length:', documentText.length);
+      console.log('🤖 Sending request to Perplexity AI...');
+      console.log('📊 Document text length:', documentText.length, 'characters');
       
       const prompt = this.buildAnalysisPrompt(documentText);
       
@@ -50,7 +109,7 @@ export class PerplexityService {
         top_p: 0.9
       };
 
-      console.log('Making API request to Perplexity...');
+      console.log('📡 Making API request to Perplexity...');
       
       const response = await fetch(this.baseUrl, {
         method: 'POST',
@@ -61,16 +120,16 @@ export class PerplexityService {
         body: JSON.stringify(requestBody)
       });
 
-      console.log('Perplexity API response status:', response.status);
+      console.log('📡 Perplexity API response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Perplexity API error:', response.status, errorText);
+        console.error('❌ Perplexity API error:', response.status, errorText);
         throw new Error(`Perplexity API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('Perplexity API response received:', data);
+      console.log('✅ Perplexity API response received');
       
       const analysisText = data.choices[0]?.message?.content;
       
@@ -78,10 +137,10 @@ export class PerplexityService {
         throw new Error('No analysis content received from Perplexity');
       }
 
-      console.log('Analysis text received from Perplexity:', analysisText);
+      console.log('📋 Analysis text received from Perplexity:', analysisText.substring(0, 500) + '...');
       return this.parseAnalysisResponse(analysisText);
     } catch (error) {
-      console.error('Perplexity analysis failed:', error);
+      console.error('❌ Perplexity analysis failed:', error);
       // Return fallback with error information
       const fallback = this.getFallbackAnalysis();
       fallback.aiError = error.message;
@@ -91,24 +150,43 @@ export class PerplexityService {
   }
 
   /**
-   * Build the analysis prompt for Perplexity AI using the exact prompt specified
+   * Build the analysis prompt for Perplexity AI
    * @param {string} documentText - The insurance document text
    * @returns {string} The formatted prompt
    */
   buildAnalysisPrompt(documentText) {
     return `
-Summarize in point form each non-acute benefit the user has, such as massage or dental, that they can use voluntarily each year.
+Analyze this insurance document and extract all voluntary health benefits that the user can use each year. 
 
-Document text:
+Please provide a detailed analysis in the following format:
+
+**PLAN INFORMATION:**
+- Plan Name: [extract plan name]
+- Policy Number: [extract policy number if available]
+
+**HEALTH BENEFITS SUMMARY:**
+For each benefit found, list:
+- Benefit name
+- Coverage percentage (if mentioned)
+- Annual maximum/limit (if mentioned)
+- Frequency/restrictions (if mentioned)
+
+**DOCUMENT TEXT:**
 ${documentText}
 
-Please provide a clear, organized summary of all voluntary health benefits available to the user, including:
-- Coverage percentages
-- Annual limits or maximums
-- Any special conditions or requirements
-- Recommended frequencies based on coverage
+Please focus on benefits like:
+- Dental care (cleanings, checkups, procedures)
+- Vision care (eye exams, glasses, contacts)
+- Physiotherapy/Physical therapy
+- Massage therapy
+- Mental health services
+- Chiropractic care
+- Naturopathic medicine
+- Acupuncture
+- Podiatry
+- Any other voluntary health services
 
-Format the response as clear bullet points for each benefit category.
+Provide clear, organized information that a user can easily understand.
 `;
   }
 
@@ -119,10 +197,10 @@ Format the response as clear bullet points for each benefit category.
    */
   parseAnalysisResponse(analysisText) {
     try {
-      // Parse the bullet point response into structured data
+      // Parse the textual response into structured data
       return this.parseTextualResponse(analysisText);
     } catch (error) {
-      console.error('Failed to parse Perplexity response:', error);
+      console.error('❌ Failed to parse Perplexity response:', error);
       return this.getFallbackAnalysis();
     }
   }
@@ -138,6 +216,20 @@ Format the response as clear bullet points for each benefit category.
 
     // Store the raw AI response for display
     const aiSummary = text;
+
+    // Extract plan information
+    let planName = 'AI-Analyzed Health Insurance Plan';
+    let policyNumber = 'AI-ANALYZED-' + Date.now();
+
+    const planNameMatch = text.match(/Plan Name:\s*([^\n]+)/i);
+    if (planNameMatch) {
+      planName = planNameMatch[1].trim();
+    }
+
+    const policyMatch = text.match(/Policy Number:\s*([^\n]+)/i);
+    if (policyMatch) {
+      policyNumber = policyMatch[1].trim();
+    }
 
     // Common health categories to look for in the response
     const categoryPatterns = [
@@ -199,11 +291,11 @@ Format the response as clear bullet points for each benefit category.
     });
 
     return {
-      planName: 'AI-Analyzed Health Insurance Plan',
-      policyNumber: 'AI-ANALYZED-' + Date.now(),
+      planName: planName,
+      policyNumber: policyNumber,
       healthCategories: categories,
       coverage: coverage,
-      aiSummary: aiSummary, // Include the raw AI response
+      aiSummary: aiSummary,
       recommendations: {
         priorityCategories: categories.slice(0, 3).map(c => c.category),
         suggestedFrequencies: {}
@@ -330,64 +422,6 @@ Format the response as clear bullet points for each benefit category.
       aiProcessed: false,
       confidence: 'demo'
     };
-  }
-
-  /**
-   * Extract text from file for analysis - IMPROVED VERSION WITH PDF SUPPORT
-   * @param {File} file - The uploaded file
-   * @returns {Promise<string>} Extracted text content
-   */
-  async extractTextFromFile(file) {
-    console.log('Extracting text from file:', file.name, file.type);
-    
-    if (file.type === 'application/pdf') {
-      console.log('Processing PDF file with PDF text extractor');
-      try {
-        const text = await pdfTextExtractor.extractText(file);
-        console.log('PDF text extraction successful, length:', text.length);
-        return text;
-      } catch (error) {
-        console.error('PDF text extraction failed:', error);
-        throw new Error(`Failed to extract text from PDF: ${error.message}`);
-      }
-    } else if (file.type.startsWith('image/')) {
-      console.log('Processing image file with OCR simulation');
-      try {
-        const text = await pdfTextExtractor.extractTextFromImage(file);
-        console.log('Image OCR simulation completed');
-        return text;
-      } catch (error) {
-        console.error('Image text extraction failed:', error);
-        throw new Error(`Failed to extract text from image: ${error.message}`);
-      }
-    } else {
-      // For text files, read directly
-      console.log('Reading text file directly');
-      try {
-        const text = await this.readFileAsText(file);
-        console.log('Text file read successfully, length:', text.length);
-        return text;
-      } catch (error) {
-        console.error('Text file reading failed:', error);
-        throw new Error(`Failed to read text file: ${error.message}`);
-      }
-    }
-  }
-
-  /**
-   * Read file as text
-   * @param {File} file - The file to read
-   * @returns {Promise<string>} File content as text
-   */
-  async readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        resolve(e.target.result);
-      };
-      reader.onerror = reject;
-      reader.readAsText(file);
-    });
   }
 
   /**
