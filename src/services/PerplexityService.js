@@ -5,14 +5,15 @@ import { pdfTextExtractor } from './PDFTextExtractor.js';
  */
 export class PerplexityService {
   constructor() {
-    this.apiKey = import.meta.env.VITE_PERPLEXITY_API_KEY;
+    // Use hardcoded API key as requested
+    this.apiKey = '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';
     this.baseUrl = 'https://api.perplexity.ai/chat/completions';
     
     // Log API key status for debugging
     if (this.apiKey) {
-      console.log('✅ Perplexity API key configured');
+      console.log('✅ Perplexity API key configured (hardcoded)');
     } else {
-      console.warn('⚠️ Perplexity API key not found. Set VITE_PERPLEXITY_API_KEY in your environment variables.');
+      console.warn('⚠️ Perplexity API key not found.');
     }
   }
 
@@ -87,8 +88,9 @@ export class PerplexityService {
     }
 
     try {
-      console.log('🤖 Sending request to Perplexity AI...');
+      console.log('🤖 Sending request to Perplexity AI with hardcoded key...');
       console.log('📊 Document text length:', documentText.length, 'characters');
+      console.log('🔑 Using hardcoded API key for analysis');
       
       const prompt = this.buildAnalysisPrompt(documentText);
       
@@ -109,7 +111,7 @@ export class PerplexityService {
         top_p: 0.9
       };
 
-      console.log('📡 Making API request to Perplexity...');
+      console.log('📡 Making API request to Perplexity with hardcoded key...');
       
       const response = await fetch(this.baseUrl, {
         method: 'POST',
@@ -129,7 +131,7 @@ export class PerplexityService {
       }
 
       const data = await response.json();
-      console.log('✅ Perplexity API response received');
+      console.log('✅ Perplexity API response received successfully');
       
       const analysisText = data.choices[0]?.message?.content;
       
@@ -137,14 +139,14 @@ export class PerplexityService {
         throw new Error('No analysis content received from Perplexity');
       }
 
-      console.log('📋 Analysis text received from Perplexity:', analysisText.substring(0, 500) + '...');
+      console.log('📋 Analysis text received from Perplexity (first 500 chars):', analysisText.substring(0, 500) + '...');
       return this.parseAnalysisResponse(analysisText);
     } catch (error) {
       console.error('❌ Perplexity analysis failed:', error);
       // Return fallback with error information
       const fallback = this.getFallbackAnalysis();
       fallback.aiError = error.message;
-      fallback.aiSummary = `AI Analysis failed: ${error.message}\n\nUsing demo data instead. To enable AI analysis, please configure your Perplexity API key.`;
+      fallback.aiSummary = `AI Analysis failed: ${error.message}\n\nUsing demo data instead. The hardcoded API key may be invalid or expired.`;
       return fallback;
     }
   }
@@ -410,7 +412,7 @@ Provide clear, organized information that a user can easily understand.
         physiotherapy: { percentage: 100, annualLimit: 2000 },
         massage: { percentage: 80, annualLimit: 500 }
       },
-      aiSummary: "Demo mode - using sample insurance data. To enable AI analysis, please add your Perplexity API key to the environment variables (VITE_PERPLEXITY_API_KEY).",
+      aiSummary: "Demo mode - using sample insurance data. The hardcoded API key may not be configured properly.",
       recommendations: {
         priorityCategories: ['dental', 'vision', 'physio'],
         suggestedFrequencies: {
