@@ -1,5 +1,5 @@
 /* Import the existing styles */
-@import url('../style.css');
+@import url('../../style.css');
 
 /* Additional styles for the refactored components can be added here */
 
